@@ -2,12 +2,12 @@ package use_case
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"errors"
 	"time"
 
 	"pharma/auth/domain"
+
+	"github.com/google/uuid"
 )
 
 var (
@@ -94,9 +94,5 @@ func (uc *AuthUseCase) Logout(ctx context.Context, token string) error {
 }
 
 func generateToken() (string, error) {
-	b := make([]byte, 32)
-	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(b), nil
+	return uuid.NewString(), nil
 }
