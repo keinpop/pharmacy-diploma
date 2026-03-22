@@ -1,0 +1,58 @@
+version: '3.9'
+
+services:
+  gateway:
+    build:
+      context: ./gateway
+    ports:
+      - "8080:8080"
+    depends_on:
+      - auth
+    networks:
+      - pharma-net
+
+  auth:
+    build:
+      context: ./auth
+    ports:
+      - "50051:50051"
+    environment:
+      DB_DSN: "postgres://pharma:secret@auth-db:5432/auth_db?sslmode=disable"
+      REDIS_ADDR: "redis:6379"
+      GRPC_PORT: "50051"
+    depends_on:
+      auth-db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - pharma-net
+
+  auth-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: pharma
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: auth_db
+    volumes:
+      - auth-db-data:/var/lib/postgresql/data
+      - ./auth/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pharma -d auth_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - pharma-net
+
+  redis:
+    image: redis:7-alpine
+    networks:
+      - pharma-net
+
+volumes:
+  auth-db-data:
+
+networks:
+  pharma-net:
+    driver: bridge
