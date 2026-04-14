@@ -13,10 +13,10 @@ import (
 	appgrpc "pharma/auth/app/grpc"
 	"pharma/auth/domain"
 	usecase "pharma/auth/domain/use_case"
-	authpb "pharma/auth/gen/auth/auth"
+	authpb "pharma/auth/gen/auth"
 )
 
-// ── mock ────────────────────────────────────────────────────────────────────
+// mock
 
 type mockUseCase struct{ mock.Mock }
 
@@ -48,7 +48,7 @@ func (m *mockUseCase) Logout(ctx context.Context, token string) error {
 	return m.Called(ctx, token).Error(0)
 }
 
-// ── helpers ──────────────────────────────────────────────────────────────────
+// helpers
 
 func grpcCode(err error) codes.Code {
 	if err == nil {
@@ -65,7 +65,7 @@ func makeHandler(uc appgrpc.AuthUseCasePort) *appgrpc.AuthHandler {
 	return appgrpc.NewAuthHandler(uc)
 }
 
-// ── Register ─────────────────────────────────────────────────────────────────
+// Register ─
 
 func TestAuthHandler_Register(t *testing.T) {
 	validUser := &domain.User{ID: 1, Username: "alice", Role: domain.RolePharmacist}
@@ -140,7 +140,7 @@ func TestAuthHandler_Register(t *testing.T) {
 	}
 }
 
-// ── Login ────────────────────────────────────────────────────────────────────
+// Login
 
 func TestAuthHandler_Login(t *testing.T) {
 	validUser := &domain.User{ID: 2, Username: "bob", Role: domain.RoleAdmin}
@@ -190,7 +190,7 @@ func TestAuthHandler_Login(t *testing.T) {
 	}
 }
 
-// ── ValidateToken ─────────────────────────────────────────────────────────────
+// ValidateToken
 
 func TestAuthHandler_ValidateToken(t *testing.T) {
 	validUser := &domain.User{ID: 3, Username: "carol", Role: domain.RolePharmacist}
@@ -236,7 +236,7 @@ func TestAuthHandler_ValidateToken(t *testing.T) {
 	}
 }
 
-// ── Logout ───────────────────────────────────────────────────────────────────
+// Logout ─
 
 func TestAuthHandler_Logout(t *testing.T) {
 	tests := []struct {

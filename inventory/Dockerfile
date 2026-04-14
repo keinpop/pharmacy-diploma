@@ -8,13 +8,13 @@ COPY sales/go.mod sales/go.sum sales/
 
 RUN go work sync
 
-WORKDIR /app/auth
-COPY auth/ .
+WORKDIR /app/inventory
+COPY inventory/ .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o /auth_service .
+RUN CGO_ENABLED=0 GOOS=linux go build -o /inventory .
 
 FROM alpine:3.19
 RUN apk --no-cache add ca-certificates tzdata
-COPY --from=builder /auth_service /auth_service
-EXPOSE 50051
-ENTRYPOINT ["/auth_service"]
+COPY --from=builder /inventory /inventory
+EXPOSE 50053
+ENTRYPOINT ["/inventory"]

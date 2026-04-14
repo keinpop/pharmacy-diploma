@@ -9,7 +9,7 @@ import (
 
 	"pharma/auth/domain"
 	usecase "pharma/auth/domain/use_case"
-	authpb "pharma/auth/gen/auth/auth"
+	authpb "pharma/auth/gen/auth"
 )
 
 type AuthHandler struct {

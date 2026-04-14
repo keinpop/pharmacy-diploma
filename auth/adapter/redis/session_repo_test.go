@@ -24,7 +24,7 @@ func newTestRepo(t *testing.T) (*redisrepo.SessionRepository, *miniredis.Minired
 	return redisrepo.NewSessionRepository(client), mr
 }
 
-// ── Set ───────────────────────────────────────────────────────────────────────
+// Set ─
 
 func TestSessionRepository_Set(t *testing.T) {
 	tests := []struct {
@@ -47,7 +47,7 @@ func TestSessionRepository_Set(t *testing.T) {
 	}
 }
 
-// ── Get ───────────────────────────────────────────────────────────────────────
+// Get ─
 
 func TestSessionRepository_Get(t *testing.T) {
 	tests := []struct {
@@ -105,7 +105,7 @@ func TestSessionRepository_Get(t *testing.T) {
 	}
 }
 
-// ── Delete ───────────────────────────────────────────────────────────────────
+// Delete ─
 
 func TestSessionRepository_Delete(t *testing.T) {
 	tests := []struct {

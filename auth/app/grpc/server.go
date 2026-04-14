@@ -8,7 +8,7 @@ import (
 	"google.golang.org/grpc/reflection"
 
 	usecase "pharma/auth/domain/use_case"
-	authpb "pharma/auth/gen/auth/auth"
+	authpb "pharma/auth/gen/auth"
 )
 
 func NewServer(uc *usecase.AuthUseCase) *grpc.Server {

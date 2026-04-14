@@ -1,0 +1,111 @@
+syntax = "proto3";
+
+package inventory;
+
+option go_package = "pharmacy/inventory/gen/inventory/inventory;inventory";
+
+import "google/protobuf/timestamp.proto";
+
+service InventoryService {
+  rpc CreateProduct(CreateProductRequest)        returns (CreateProductResponse);
+  rpc GetProduct(GetProductRequest)              returns (ProductResponse);
+  rpc ListProducts(ListProductsRequest)          returns (ListProductsResponse);
+  rpc SearchProducts(SearchProductsRequest)      returns (ListProductsResponse);
+  rpc GetAnalogs(GetAnalogsRequest)              returns (ListProductsResponse);
+
+  rpc ReceiveBatch(ReceiveBatchRequest)          returns (BatchResponse);
+  rpc GetStock(GetStockRequest)                  returns (GetStockResponse);
+  rpc DeductStock(DeductStockRequest)            returns (DeductStockResponse);
+  rpc ListExpiringBatches(ListExpiringRequest)   returns (ListExpiringResponse);
+  rpc ListLowStock(ListLowStockRequest)          returns (ListLowStockResponse);
+  rpc WriteOffExpired(WriteOffExpiredRequest)    returns (WriteOffExpiredResponse);
+}
+
+enum BatchStatus {
+  BATCH_STATUS_UNSPECIFIED = 0;
+  AVAILABLE                = 1;
+  EXPIRING_SOON            = 2;
+  EXPIRED                  = 3;
+  WRITTEN_OFF              = 4;
+}
+
+// Product
+message Product {
+  string id                 = 1;
+  string name               = 2;
+  string trade_name         = 3;
+  string active_substance   = 4;
+  string form               = 5;
+  string dosage             = 6;
+  string category           = 7;
+  string storage_conditions = 8;
+  string unit               = 9;
+  int32  reorder_point      = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+}
+
+message CreateProductRequest {
+  string name               = 1;
+  string trade_name         = 2;
+  string active_substance   = 3;
+  string form               = 4;
+  string dosage             = 5;
+  string category           = 6;
+  string storage_conditions = 7;
+  string unit               = 8;
+  int32  reorder_point      = 9;
+}
+message CreateProductResponse { Product product = 1; }
+message GetProductRequest     { string id = 1; }
+message ProductResponse       { Product product = 1; }
+message ListProductsRequest   { int32 page = 1; int32 page_size = 2; }
+message ListProductsResponse  { repeated Product products = 1; int32 total = 2; }
+message SearchProductsRequest { string query = 1; int32 limit = 2; }
+message GetAnalogsRequest     { string product_id = 1; int32 limit = 2; }
+
+// Batch
+message Batch {
+  string id             = 1;
+  string product_id     = 2;
+  string series_number  = 3;
+  google.protobuf.Timestamp expires_at  = 4;
+  google.protobuf.Timestamp received_at = 5;
+  int32  quantity       = 6;
+  int32  reserved       = 7;
+  double purchase_price = 8;
+  double retail_price   = 9;
+  BatchStatus status    = 10;
+}
+
+message ReceiveBatchRequest {
+  string product_id    = 1;
+  string series_number = 2;
+  google.protobuf.Timestamp expires_at = 3;
+  int32  quantity      = 4;
+  double purchase_price = 5;
+  double retail_price  = 6;
+}
+message BatchResponse { Batch batch = 1; }
+
+// Stock
+message StockItem {
+  string product_id     = 1;
+  int32  total_quantity = 2;
+  int32  reserved       = 3;
+  int32  available      = 4;
+  bool   low_stock      = 5;
+}
+
+message GetStockRequest   { string product_id = 1; }
+message GetStockResponse  { StockItem stock = 1; }
+message DeductStockRequest  { string product_id = 1; int32 quantity = 2; string order_id = 3; }
+message DeductStockResponse { bool success = 1; string batch_id = 2; double retail_price = 3; }
+
+// Reports
+message ListExpiringRequest  { int32 days_ahead = 1; }
+message ListExpiringResponse { repeated Batch batches = 1; }
+message ListLowStockRequest  {}
+message ListLowStockResponse { repeated StockItem items = 1; }
+message WriteOffExpiredRequest  {}
+message WriteOffExpiredResponse { int32 written_off_count = 1; }

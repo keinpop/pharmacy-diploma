@@ -23,7 +23,7 @@ func newMockDB(t *testing.T) (*postgres.UserRepository, sqlmock.Sqlmock) {
 	return postgres.NewUserRepository(db), mock
 }
 
-// ── Create ───────────────────────────────────────────────────────────────────
+// Create ─
 
 func TestUserRepository_Create(t *testing.T) {
 	validUser := &domain.User{
@@ -79,7 +79,7 @@ func TestUserRepository_Create(t *testing.T) {
 	}
 }
 
-// ── GetByUsername ────────────────────────────────────────────────────────────
+// GetByUsername─
 
 func TestUserRepository_GetByUsername(t *testing.T) {
 	cols := []string{"id", "username", "password_hash", "role", "created_at"}
@@ -134,7 +134,7 @@ func TestUserRepository_GetByUsername(t *testing.T) {
 	}
 }
 
-// ── GetByID ──────────────────────────────────────────────────────────────────
+// GetByID
 
 func TestUserRepository_GetByID(t *testing.T) {
 	cols := []string{"id", "username", "password_hash", "role", "created_at"}

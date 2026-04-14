@@ -1,31 +1,87 @@
+PROTO_DIR     := proto
+AUTH_OUT      := auth/gen/
+INVENTORY_OUT := inventory/gen/
+SALES_OUT     := sales/gen/
 
-.PHONY: proto up down
+.PHONY: proto proto-auth proto-inventory proto-sales \
+        build build-auth build-inventory build-sales \
+        test test-auth test-inventory test-sales \
+        migrate-auth migrate-inventory \
+        lint up down down-hard
 
-proto:
-	mkdir -p auth/gen/auth
+# ── proto ──────────────────────────────────────────────────────────────────
+proto: proto-auth proto-inventory proto-sales
+
+proto-auth:
+	mkdir -p $(AUTH_OUT)
 	protoc \
-		--go_out=auth/gen/auth \
-		--go_opt=paths=source_relative \
-		--go-grpc_out=auth/gen/auth \
-		--go-grpc_opt=paths=source_relative \
-		-I proto \
-		proto/auth/auth.proto
+	  --go_out=$(AUTH_OUT) --go_opt=paths=source_relative \
+	  --go-grpc_out=$(AUTH_OUT) --go-grpc_opt=paths=source_relative \
+	  -I $(PROTO_DIR) \
+	  $(PROTO_DIR)/auth/auth.proto
 
+proto-inventory:
+	mkdir -p $(INVENTORY_OUT)
+	protoc \
+	  --go_out=$(INVENTORY_OUT) --go_opt=paths=source_relative \
+	  --go-grpc_out=$(INVENTORY_OUT) --go-grpc_opt=paths=source_relative \
+	  -I $(PROTO_DIR) \
+	  $(PROTO_DIR)/inventory/inventory.proto
+
+proto-sales:
+	mkdir -p $(SALES_OUT)
+	protoc \
+	  --go_out=$(SALES_OUT) --go_opt=paths=source_relative \
+	  --go-grpc_out=$(SALES_OUT) --go-grpc_opt=paths=source_relative \
+	  -I $(PROTO_DIR) \
+	  $(PROTO_DIR)/auth/auth.proto \
+	  $(PROTO_DIR)/inventory/inventory.proto \
+	  $(PROTO_DIR)/sales/sales.proto
+
+# ── build ──────────────────────────────────────────────────────────────────
+build: build-auth build-inventory build-sales
+
+build-auth:
+	cd auth && go build -o ../bin/auth ./...
+
+build-inventory:
+	cd inventory && go build -o ../bin/inventory ./...
+
+build-sales:
+	cd sales && go build -o ../bin/sales ./...
+
+# ── test ───────────────────────────────────────────────────────────────────
+t: test-auth test-inventory test-sales
+
+test-auth:
+	cd auth && go test ./... -v -race -cover
+
+test-inventory:
+	cd inventory && go test ./... -v -race -cover
+
+test-sales:
+	cd sales && go test ./... -v -race -cover
+
+# ── migrate ────────────────────────────────────────────────────────────────
+migrate-auth:
+	psql "$(AUTH_DSN)" -f auth/migrations/001_init.sql
+
+migrate-inventory:
+	psql "$(INVENTORY_DSN)" -f inventory/migrations/001_init.sql
+
+migrate-sales:
+	psql "$(SALES_DSN)" -f sales/migrations/001_init.sql
+
+# ── lint ───────────────────────────────────────────────────────────────────
+lint:
+	golangci-lint run ./auth/... ./inventory/... ./sales/...
+
+# ── docker ─────────────────────────────────────────────────────────────────
 up:
-	docker-compose up --build -d
+	docker compose up --build -d
 
 down:
-	docker-compose down -v
+	docker compose down
 
-# выключить контейнер без очистки данных - soft-down
-s-down:
-	docker-compose down
-
-# Запуск всех тестов
-t:
-	cd auth && go test ./... -v -count=1
-
-test-cover:
-	cd auth && go test ./... -coverprofile=coverage.out -count=1
-	cd auth && go tool cover -html=coverage.out -o coverage.html
-	@echo "Coverage report: auth/coverage.html"
+down-hard:
+	docker compose down -v

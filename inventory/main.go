@@ -1,0 +1,139 @@
+package main
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"log"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	_ "github.com/lib/pq"
+
+	"github.com/elastic/go-elasticsearch/v8"
+	"github.com/redis/go-redis/v9"
+	"go.uber.org/zap"
+
+	esadapter "pharmacy/inventory/adapter/elastic"
+	pgadapter "pharmacy/inventory/adapter/postgres"
+	grpcapp "pharmacy/inventory/app/grpc"
+	"pharmacy/inventory/config"
+	usecase "pharmacy/inventory/domain/use_case"
+)
+
+func main() {
+	logger, _ := zap.NewProduction()
+	defer logger.Sync()
+
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("config: %v", err)
+	}
+
+	// Postgres
+	db, err := connectPostgres(cfg.Postgres.DSN)
+	if err != nil {
+		log.Fatalf("postgres: %v", err)
+	}
+	defer db.Close()
+
+	// Redis (зарезервировано для кэша)
+	_ = redis.NewClient(&redis.Options{
+		Addr:     cfg.Redis.Addr,
+		Password: cfg.Redis.Password,
+		DB:       cfg.Redis.DB,
+	})
+
+	// Elasticsearch
+	esClient, err := elasticsearch.NewClient(elasticsearch.Config{
+		Addresses: cfg.Elasticsearch.Addresses,
+	})
+	if err != nil {
+		logger.Fatal("elasticsearch connect", zap.Error(err))
+	}
+
+	// Auth gRPC client — для валидации user-токенов
+	authClient, err := grpcapp.NewAuthClient(cfg.AuthAddr)
+	if err != nil {
+		logger.Fatal("auth client init", zap.Error(err))
+	}
+
+	// Repositories
+	productRepo := pgadapter.NewProductRepository(db)
+	batchRepo := pgadapter.NewBatchRepository(db)
+	stockRepo := pgadapter.NewStockRepository(db)
+	searchRepo := esadapter.NewProductSearchRepo(esClient)
+
+	// После инициализации репозиториев и до запуска gRPC:
+	if err := syncElasticsearch(context.Background(), productRepo, searchRepo, logger); err != nil {
+		logger.Warn("elasticsearch initial sync failed", zap.Error(err))
+		// не fatal — сервис работает, поиск просто пустой
+	}
+
+	// Use-case
+	uc := usecase.NewInventoryUseCase(batchRepo, stockRepo, productRepo, searchRepo, cfg.Inventory.ExpiringSoonDays)
+
+	// gRPC server
+	handler := grpcapp.NewHandler(uc)
+	srv := grpcapp.NewServer(cfg.GRPC.Port, handler, authClient, logger, cfg.ServiceToken)
+
+	go func() {
+		if err := srv.Run(); err != nil {
+			logger.Fatal("grpc serve", zap.Error(err))
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	logger.Info("shutting down inventory service")
+	srv.Stop()
+}
+
+func connectPostgres(dsn string) (*sql.DB, error) {
+	var db *sql.DB
+	var err error
+
+	for i := range 10 {
+		db, err = sql.Open("postgres", dsn)
+		if err == nil {
+			err = db.Ping()
+		}
+		if err == nil {
+			return db, nil
+		}
+		log.Printf("waiting for postgres (attempt %d/10): %v", i+1, err)
+		time.Sleep(2 * time.Second)
+	}
+	return nil, fmt.Errorf("could not connect to postgres after 10 attempts: %w", err)
+}
+
+func syncElasticsearch(
+	ctx context.Context,
+	products usecase.ProductRepository,
+	search usecase.SearchRepository,
+	logger *zap.Logger,
+) error {
+	logger.Info("syncing products to elasticsearch...")
+	// Грузим все продукты постранично
+	page, pageSize := 1, 100
+	total := 0
+	for {
+		batch, count, err := products.List(ctx, page, pageSize)
+		if err != nil {
+			return err
+		}
+		if err := search.ReindexAll(ctx, batch); err != nil {
+			return err
+		}
+		total += len(batch)
+		if total >= count {
+			break
+		}
+		page++
+	}
+	logger.Info("elasticsearch sync complete", zap.Int("indexed", total))
+	return nil
+}

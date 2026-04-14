@@ -1,58 +1,166 @@
-version: '3.9'
-
 services:
+
+  # ── Auth ──────────────────────────────────────────────────────────────────
+  auth:
+    build:
+      context: .
+      dockerfile: auth/Dockerfile
+    environment:
+      GRPC_PORT:  "50051"
+      DB_DSN:     "postgres://auth:auth@postgres-auth:5432/auth?sslmode=disable"
+      REDIS_ADDR: "redis:6379"
+    depends_on:
+      postgres-auth:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    ports:
+      - "50051:50051"
+    networks:
+      - pharmacy-net
+
+  postgres-auth:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER:     auth
+      POSTGRES_PASSWORD: auth
+      POSTGRES_DB:       auth
+    volumes:
+      - pg_auth:/var/lib/postgresql/data
+      - ./auth/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U auth -d auth"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pharmacy-net
+
+  # ── Inventory ─────────────────────────────────────────────────────────────
+  inventory:
+    build:
+      context: .
+      dockerfile: inventory/Dockerfile
+    environment:
+      GRPC_PORT:                    "50053"
+      POSTGRES_DSN:                 "postgres://inventory:inventory@postgres-inventory:5432/inventory?sslmode=disable"
+      REDIS_ADDR:                   "redis:6379"
+      ES_ADDRESSES:                 "http://elasticsearch:9200"
+      INVENTORY_EXPIRING_SOON_DAYS: "30"
+      SERVICE_TOKEN:                "internal-service-secret"
+      AUTH_ADDR:                    "auth:50051"
+    depends_on:
+      postgres-inventory:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      elasticsearch:
+        condition: service_healthy
+    ports:
+      - "50053:50053"
+    networks:
+      - pharmacy-net
+
+  postgres-inventory:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER:     inventory
+      POSTGRES_PASSWORD: inventory
+      POSTGRES_DB:       inventory
+    volumes:
+      - pg_inventory:/var/lib/postgresql/data
+      - ./inventory/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U inventory -d inventory"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pharmacy-net
+
+  # ── Sales ─────────────────────────────────────────────────────────────────
+  sales:
+    build:
+      context: .
+      dockerfile: sales/Dockerfile
+    environment:
+      GRPC_PORT:       "50054"
+      POSTGRES_DSN:    "postgres://sales:sales@postgres-sales:5432/sales?sslmode=disable"
+      AUTH_ADDR:       "auth:50051"
+      INVENTORY_ADDR:  "inventory:50053"
+      SERVICE_TOKEN:   "internal-service-secret"
+    depends_on:
+      postgres-sales:
+        condition: service_healthy
+      auth:
+        condition: service_started
+      inventory:
+        condition: service_started
+    ports:
+      - "50054:50054"
+    networks:
+      - pharmacy-net
+
+  postgres-sales:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER:     sales
+      POSTGRES_PASSWORD: sales
+      POSTGRES_DB:       sales
+    volumes:
+      - pg_sales:/var/lib/postgresql/data
+      - ./sales/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sales -d sales"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pharmacy-net
+
+  # ── Gateway ───────────────────────────────────────────────────────────────
   gateway:
     build:
-      context: ./gateway
+      context: gateway
+      dockerfile: Dockerfile
     ports:
       - "8080:8080"
     depends_on:
       - auth
+      - inventory
+      - sales
     networks:
-      - pharma-net
+      - pharmacy-net
 
-  auth:
-    build:
-      context: ./auth
-    ports:
-      - "50051:50051"
-    environment:
-      DB_DSN: "postgres://pharma:secret@auth-db:5432/auth_db?sslmode=disable"
-      REDIS_ADDR: "redis:6379"
-      GRPC_PORT: "50051"
-    depends_on:
-      auth-db:
-        condition: service_healthy
-      redis:
-        condition: service_started
-    networks:
-      - pharma-net
-
-  auth-db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: pharma
-      POSTGRES_PASSWORD: secret
-      POSTGRES_DB: auth_db
-    volumes:
-      - auth-db-data:/var/lib/postgresql/data
-      - ./auth/migrations:/docker-entrypoint-initdb.d
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U pharma -d auth_db"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    networks:
-      - pharma-net
-
+  # ── Redis ─────────────────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
     networks:
-      - pharma-net
+      - pharmacy-net
+
+  # ── Elasticsearch ─────────────────────────────────────────────────────────
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - xpack.security.enabled=false
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health | grep -qv '\"status\":\"red\"'"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    networks:
+      - pharmacy-net
 
 volumes:
-  auth-db-data:
+  pg_auth:
+  pg_inventory:
+  pg_sales:
+  es_data:
 
 networks:
-  pharma-net:
+  pharmacy-net:
     driver: bridge

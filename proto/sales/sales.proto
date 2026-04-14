@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package sales;
+
+option go_package = "pharmacy/sales/gen/sales;salespb";
+
+import "google/protobuf/timestamp.proto";
+
+service SalesService {
+  rpc CreateSale(CreateSaleRequest) returns (CreateSaleResponse);
+  rpc GetSale(GetSaleRequest)       returns (GetSaleResponse);
+  rpc ListSales(ListSalesRequest)   returns (ListSalesResponse);
+}
+
+message SaleItemRequest {
+  string product_id = 1;
+  int32  quantity   = 2;
+}
+
+message CreateSaleRequest {
+  repeated SaleItemRequest items = 1;
+}
+
+message SaleItem {
+  string id             = 1;
+  string sale_id        = 2;
+  string product_id     = 3;
+  int32  quantity       = 4;
+  double price_per_unit = 5;
+  double total_price    = 6;
+}
+
+message Sale {
+  string id                          = 1;
+  repeated SaleItem items            = 2;
+  double total_amount                = 3;
+  google.protobuf.Timestamp sold_at  = 4;
+}
+
+message CreateSaleResponse { Sale sale = 1; }
+message GetSaleRequest     { string id = 1; }
+message GetSaleResponse    { Sale sale = 1; }
+message ListSalesRequest   { int32 page = 1; int32 page_size = 2; }
+message ListSalesResponse  { repeated Sale sales = 1; int32 total = 2; }

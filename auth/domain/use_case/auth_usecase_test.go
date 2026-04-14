@@ -13,7 +13,7 @@ import (
 	usecase "pharma/auth/domain/use_case"
 )
 
-// ── mocks ─────────────────────────────────────────────────────────────────────
+// mocks ─
 
 type mockUserRepo struct{ mock.Mock }
 
@@ -52,7 +52,7 @@ func (m *mockSessionRepo) Delete(ctx context.Context, token string) error {
 	return m.Called(ctx, token).Error(0)
 }
 
-// ── Register ──────────────────────────────────────────────────────────────────
+// Register
 
 func TestAuthUseCase_Register(t *testing.T) {
 	tests := []struct {
@@ -141,7 +141,7 @@ func TestAuthUseCase_Register(t *testing.T) {
 	}
 }
 
-// ── Login ─────────────────────────────────────────────────────────────────────
+// Login
 
 func TestAuthUseCase_Login(t *testing.T) {
 	hash, _ := bcrypt.GenerateFromPassword([]byte("correctpass"), bcrypt.DefaultCost)
@@ -214,7 +214,7 @@ func TestAuthUseCase_Login(t *testing.T) {
 	}
 }
 
-// ── ValidateToken ─────────────────────────────────────────────────────────────
+// ValidateToken
 
 func TestAuthUseCase_ValidateToken(t *testing.T) {
 	existingUser := &domain.User{ID: 7, Username: "carol", Role: domain.RoleAdmin}
@@ -275,7 +275,7 @@ func TestAuthUseCase_ValidateToken(t *testing.T) {
 	}
 }
 
-// ── Logout ───────────────────────────────────────────────────────────────────
+// Logout ─
 
 func TestAuthUseCase_Logout(t *testing.T) {
 	tests := []struct {
