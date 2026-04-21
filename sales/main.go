@@ -14,6 +14,7 @@ import (
 	"go.uber.org/zap"
 
 	"pharmacy/sales/adapter/grpcclient"
+	kafkaadapter "pharmacy/sales/adapter/kafka"
 	pgadapter "pharmacy/sales/adapter/postgres"
 	grpcapp "pharmacy/sales/app/grpc"
 	"pharmacy/sales/config"
@@ -35,6 +36,9 @@ func main() {
 	}
 	defer db.Close()
 
+	kafkaProducer := kafkaadapter.NewKafkaProducer(cfg.KafkaBrokers, logger)
+	defer kafkaProducer.Close()
+
 	authClient, err := grpcapp.NewAuthClient(cfg.AuthAddr)
 	if err != nil {
 		logger.Fatal("auth client failed", zap.Error(err))
@@ -46,7 +50,7 @@ func main() {
 	}
 
 	saleRepo := pgadapter.NewSaleRepository(db)
-	salesUC := usecase.NewSalesUseCase(saleRepo, inventoryClient)
+	salesUC := usecase.NewSalesUseCase(saleRepo, inventoryClient, kafkaProducer)
 
 	handler := grpcapp.NewHandler(salesUC)
 	srv := grpcapp.NewServer(cfg.GRPCPort, handler, authClient, logger, cfg.ServiceToken)

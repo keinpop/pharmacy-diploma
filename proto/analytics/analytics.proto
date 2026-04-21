@@ -1,0 +1,116 @@
+syntax = "proto3";
+package analytics;
+option go_package = "pharmacy/analytics/gen/analytics;analyticspb";
+
+import "google/protobuf/timestamp.proto";
+
+service AnalyticsService {
+  rpc CreateSalesReport(CreateSalesReportRequest) returns (CreateReportResponse);
+  rpc GetSalesReport(GetReportRequest) returns (SalesReportResponse);
+  rpc CreateWriteOffReport(CreateWriteOffReportRequest) returns (CreateReportResponse);
+  rpc GetWriteOffReport(GetReportRequest) returns (WriteOffReportResponse);
+  rpc CreateForecast(CreateForecastRequest) returns (CreateReportResponse);
+  rpc GetForecast(GetReportRequest) returns (ForecastResponse);
+  rpc CreateWasteAnalysis(CreateWasteAnalysisRequest) returns (CreateReportResponse);
+  rpc GetWasteAnalysis(GetReportRequest) returns (WasteAnalysisResponse);
+}
+
+enum ReportPeriod {
+  REPORT_PERIOD_UNSPECIFIED = 0;
+  MONTH = 1;
+  HALF_YEAR = 2;
+  YEAR = 3;
+}
+
+enum ReportStatus {
+  REPORT_STATUS_UNSPECIFIED = 0;
+  PENDING = 1;
+  PROCESSING = 2;
+  READY = 3;
+  FAILED = 4;
+}
+
+message CreateReportResponse { string report_id = 1; }
+message GetReportRequest { string report_id = 1; }
+
+// Sales Report
+message CreateSalesReportRequest { ReportPeriod period = 1; }
+message SalesReportItem {
+  string product_id = 1;
+  string product_name = 2;
+  int32 quantity_sold = 3;
+  double revenue = 4;
+  double avg_price = 5;
+}
+message SalesReportResponse {
+  ReportStatus status = 1;
+  repeated SalesReportItem items = 2;
+  double total_revenue = 3;
+  int32 total_quantity = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp completed_at = 6;
+  string error = 7;
+}
+
+// Write-Off Report
+message CreateWriteOffReportRequest { ReportPeriod period = 1; }
+message WriteOffReportItem {
+  string product_id = 1;
+  string product_name = 2;
+  int32 quantity_written_off = 3;
+  double loss_amount = 4;
+}
+message WriteOffReportResponse {
+  ReportStatus status = 1;
+  repeated WriteOffReportItem items = 2;
+  double total_loss = 3;
+  int32 total_written_off = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp completed_at = 6;
+  string error = 7;
+}
+
+// Forecast
+message CreateForecastRequest { int32 lookback_months = 1; }
+message ForecastItem {
+  string product_id = 1;
+  string product_name = 2;
+  string therapeutic_group = 3;
+  int32 forecast_demand = 4;
+  int32 current_stock = 5;
+  int32 expiring_next_month = 6;
+  int32 usable_stock = 7;
+  double waste_ratio = 8;
+  int32 recommended_order = 9;
+  string confidence = 10;
+  string note = 11;
+}
+message ForecastResponse {
+  ReportStatus status = 1;
+  repeated ForecastItem items = 2;
+  string period = 3;
+  int32 lookback_months = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp completed_at = 6;
+  string error = 7;
+}
+
+// Waste Analysis
+message CreateWasteAnalysisRequest { ReportPeriod period = 1; }
+message WasteAnalysisItem {
+  string product_id = 1;
+  string product_name = 2;
+  string therapeutic_group = 3;
+  int32 received = 4;
+  int32 written_off = 5;
+  double waste_ratio = 6;
+  double loss_amount = 7;
+  string recommendation = 8;
+}
+message WasteAnalysisResponse {
+  ReportStatus status = 1;
+  repeated WasteAnalysisItem items = 2;
+  google.protobuf.Timestamp created_at = 3;
+  google.protobuf.Timestamp completed_at = 4;
+  string error = 5;
+}

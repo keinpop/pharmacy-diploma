@@ -103,7 +103,7 @@ func (m *mockSearchRepo) ReindexAll(ctx context.Context, products []*domain.Prod
 
 // newUC собирает use-case из моков.
 func newUC(pr *mockProductRepo, br *mockBatchRepo, sr *mockStockRepo, es *mockSearchRepo) *usecase.InventoryUseCase {
-	return usecase.NewInventoryUseCase(br, sr, pr, es, 30)
+	return usecase.NewInventoryUseCase(br, sr, pr, es, nil, 30)
 }
 
 // stubProduct — хелпер для часто используемого продукта в мок-ответах.
@@ -550,7 +550,7 @@ func TestInventoryUseCase_DeductStock(t *testing.T) {
 			tc.setup(pr, br, sr)
 			uc := newUC(pr, br, sr, es)
 
-			batchID, _, err := uc.DeductStock(context.Background(), tc.productID, tc.qty, tc.orderID)
+			batchID, _, _, _, err := uc.DeductStock(context.Background(), tc.productID, tc.qty, tc.orderID)
 
 			if tc.wantErr != nil {
 				assert.ErrorIs(t, err, tc.wantErr)

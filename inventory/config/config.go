@@ -1,64 +1,46 @@
 package config
 
 import (
-	"fmt"
 	"os"
 	"strconv"
-	"strings"
 )
 
 type Config struct {
-	GRPC struct {
-		Port string
-	}
-	Postgres struct {
-		DSN string
-	}
-	Redis struct {
-		Addr     string
-		Password string
-		DB       int
-	}
-	Elasticsearch struct {
-		Addresses []string
-	}
-	Inventory struct {
-		ExpiringSoonDays int
-	}
-	ServiceToken string
-	AuthAddr     string
+	GRPCPort         string
+	PostgresDSN      string
+	RedisAddr        string
+	ESAddresses      string
+	ExpiringSoonDays int
+	ServiceToken     string
+	AuthAddr         string
+	KafkaBrokers     string
 }
 
-func Load() (*Config, error) {
-	cfg := &Config{}
-
-	cfg.GRPC.Port = getEnv("GRPC_PORT", "50053")
-	cfg.Postgres.DSN = getEnv("POSTGRES_DSN", "")
-	cfg.Redis.Addr = getEnv("REDIS_ADDR", "localhost:6379")
-	cfg.Redis.Password = getEnv("REDIS_PASSWORD", "")
-	cfg.Elasticsearch.Addresses = strings.Split(getEnv("ES_ADDRESSES", "http://localhost:9200"), ",")
-	cfg.ServiceToken = getEnv("SERVICE_TOKEN", "")
-	cfg.AuthAddr = getEnv("AUTH_ADDR", "auth:50051")
-
-	if cfg.Postgres.DSN == "" {
-		return nil, fmt.Errorf("POSTGRES_DSN is required")
+func Load() *Config {
+	return &Config{
+		GRPCPort:         getEnv("GRPC_PORT", "50053"),
+		PostgresDSN:      getEnv("POSTGRES_DSN", "postgres://inventory:inventory@localhost:5432/inventory?sslmode=disable"),
+		RedisAddr:        getEnv("REDIS_ADDR", "redis:6379"),
+		ESAddresses:      getEnv("ES_ADDRESSES", "http://elasticsearch:9200"),
+		ExpiringSoonDays: getEnvInt("EXPIRING_SOON_DAYS", 30),
+		ServiceToken:     getEnv("SERVICE_TOKEN", "internal-service-secret"),
+		AuthAddr:         getEnv("AUTH_ADDR", "auth:50051"),
+		KafkaBrokers:     getEnv("KAFKA_BROKERS", "kafka:9092"),
 	}
-
-	days, err := strconv.Atoi(getEnv("INVENTORY_EXPIRING_SOON_DAYS", "30"))
-	if err != nil {
-		return nil, fmt.Errorf("INVENTORY_EXPIRING_SOON_DAYS must be int: %w", err)
-	}
-	cfg.Inventory.ExpiringSoonDays = days
-
-	dbNum, _ := strconv.Atoi(getEnv("REDIS_DB", "0"))
-	cfg.Redis.DB = dbNum
-
-	return cfg, nil
 }
 
 func getEnv(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
+	}
+	return fallback
+}
+
+func getEnvInt(key string, fallback int) int {
+	if v := os.Getenv(key); v != "" {
+		if i, err := strconv.Atoi(v); err == nil {
+			return i
+		}
 	}
 	return fallback
 }

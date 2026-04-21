@@ -32,6 +32,7 @@ type Product struct {
 	Category          Category // "otc" или "prescription"
 	StorageConditions string
 	Unit              string // единица учёта
+	TherapeuticGroup  string // терапевтическая группа
 	ReorderPoint      int    // порог для уведомления о низком остатке
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
@@ -41,7 +42,7 @@ func NewProduct(
 	name, tradeName, activeSubstance, form, dosage string,
 	category Category,
 	storageConditions, unit string,
-	reorderPoint int,
+	reorderPoint int, therapeuticGroup string,
 ) (*Product, error) {
 	if name == "" {
 		return nil, ErrEmptyProductName
@@ -63,6 +64,7 @@ func NewProduct(
 		Category:          category,
 		StorageConditions: storageConditions,
 		Unit:              unit,
+		TherapeuticGroup:  therapeuticGroup,
 		ReorderPoint:      reorderPoint,
 		CreatedAt:         now,
 		UpdatedAt:         now,

@@ -34,9 +34,15 @@ func (m *MockSaleRepo) List(ctx context.Context, page, pageSize int) ([]*domain.
 
 type MockInventoryClient struct{ mock.Mock }
 
-func (m *MockInventoryClient) DeductStock(ctx context.Context, productID string, qty int, orderID string) (string, float64, error) {
+func (m *MockInventoryClient) DeductStock(ctx context.Context, productID string, qty int, orderID string) (string, float64, string, string, error) {
 	args := m.Called(ctx, productID, qty, orderID)
-	return args.String(0), args.Get(1).(float64), args.Error(2)
+	return args.String(0), args.Get(1).(float64), args.String(2), args.String(3), args.Error(4)
+}
+
+type MockEventPublisher struct{ mock.Mock }
+
+func (m *MockEventPublisher) PublishSaleCompleted(ctx context.Context, event usecase.SaleCompletedEvent) error {
+	return m.Called(ctx, event).Error(0)
 }
 
 // — tests —
@@ -50,9 +56,9 @@ func TestCreateSale(t *testing.T) {
 		errContains string
 	}{
 		{
-			name:    "empty items",
-			input:   usecase.CreateSaleInput{Items: nil},
-			wantErr: true,
+			name:       "empty items",
+			input:      usecase.CreateSaleInput{Items: nil},
+			wantErr:    true,
 			setupMocks: func(repo *MockSaleRepo, inv *MockInventoryClient) {},
 		},
 		{
@@ -64,7 +70,7 @@ func TestCreateSale(t *testing.T) {
 			},
 			setupMocks: func(repo *MockSaleRepo, inv *MockInventoryClient) {
 				inv.On("DeductStock", mock.Anything, "p1", 5, "").
-					Return("", float64(0), errors.New("insufficient stock"))
+					Return("", float64(0), "", "", errors.New("insufficient stock"))
 			},
 			wantErr: true,
 		},
@@ -77,7 +83,7 @@ func TestCreateSale(t *testing.T) {
 			},
 			setupMocks: func(repo *MockSaleRepo, inv *MockInventoryClient) {
 				inv.On("DeductStock", mock.Anything, "p1", 3, "").
-					Return("batch-1", float64(150.50), nil)
+					Return("batch-1", float64(150.50), "Aspirin", "painkiller", nil)
 				repo.On("Create", mock.Anything, mock.AnythingOfType("*domain.Sale")).
 					Return(nil)
 			},
@@ -93,9 +99,9 @@ func TestCreateSale(t *testing.T) {
 			},
 			setupMocks: func(repo *MockSaleRepo, inv *MockInventoryClient) {
 				inv.On("DeductStock", mock.Anything, "p1", 2, "").
-					Return("batch-1", float64(100.0), nil)
+					Return("batch-1", float64(100.0), "Aspirin", "painkiller", nil)
 				inv.On("DeductStock", mock.Anything, "p2", 1, "").
-					Return("batch-2", float64(200.0), nil)
+					Return("batch-2", float64(200.0), "Loratadine", "antihistamine", nil)
 				repo.On("Create", mock.Anything, mock.AnythingOfType("*domain.Sale")).
 					Return(nil)
 			},
@@ -110,7 +116,7 @@ func TestCreateSale(t *testing.T) {
 			},
 			setupMocks: func(repo *MockSaleRepo, inv *MockInventoryClient) {
 				inv.On("DeductStock", mock.Anything, "p1", 1, "").
-					Return("batch-1", float64(50.0), nil)
+					Return("batch-1", float64(50.0), "Aspirin", "painkiller", nil)
 				repo.On("Create", mock.Anything, mock.AnythingOfType("*domain.Sale")).
 					Return(errors.New("db error"))
 			},
@@ -124,7 +130,7 @@ func TestCreateSale(t *testing.T) {
 			inv := new(MockInventoryClient)
 			tc.setupMocks(repo, inv)
 
-			uc := usecase.NewSalesUseCase(repo, inv)
+			uc := usecase.NewSalesUseCase(repo, inv, nil)
 			sale, err := uc.CreateSale(context.Background(), tc.input)
 
 			if tc.wantErr {
@@ -173,7 +179,7 @@ func TestGetSale(t *testing.T) {
 			inv := new(MockInventoryClient)
 			tc.setup(repo)
 
-			uc := usecase.NewSalesUseCase(repo, inv)
+			uc := usecase.NewSalesUseCase(repo, inv, nil)
 			sale, err := uc.GetSale(context.Background(), tc.id)
 
 			if tc.wantErr {
@@ -221,7 +227,7 @@ func TestListSales(t *testing.T) {
 			inv := new(MockInventoryClient)
 			tc.setup(repo)
 
-			uc := usecase.NewSalesUseCase(repo, inv)
+			uc := usecase.NewSalesUseCase(repo, inv, nil)
 			sales, _, err := uc.ListSales(context.Background(), tc.page, tc.pageSize)
 
 			if tc.wantErr {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"time"
 
 	"pharmacy/inventory/domain"
 )
@@ -13,6 +14,7 @@ type InventoryUseCase struct {
 	stock            StockRepository
 	products         ProductRepository
 	search           SearchRepository
+	events           EventPublisher
 	expiringSoonDays int
 }
 
@@ -21,9 +23,10 @@ func NewInventoryUseCase(
 	s StockRepository,
 	p ProductRepository,
 	sr SearchRepository,
+	events EventPublisher,
 	expiringSoonDays int,
 ) *InventoryUseCase {
-	return &InventoryUseCase{batches: b, stock: s, products: p, search: sr, expiringSoonDays: expiringSoonDays}
+	return &InventoryUseCase{batches: b, stock: s, products: p, search: sr, events: events, expiringSoonDays: expiringSoonDays}
 }
 
 // Product
@@ -33,6 +36,7 @@ func (uc *InventoryUseCase) CreateProduct(ctx context.Context, in CreateProductI
 		in.Name, in.TradeName, in.ActiveSubstance,
 		in.Form, in.Dosage, in.Category,
 		in.StorageConditions, in.Unit, in.ReorderPoint,
+		in.TherapeuticGroup,
 	)
 	if err != nil {
 		return nil, err
@@ -109,13 +113,30 @@ func (uc *InventoryUseCase) ReceiveBatch(ctx context.Context, in ReceiveBatchInp
 		return nil, err
 	}
 	// проверка что продукт существует
-	if _, err := uc.products.GetByID(ctx, in.ProductID); err != nil {
+	product, err := uc.products.GetByID(ctx, in.ProductID)
+	if err != nil {
 		return nil, err
 	}
 	if err := uc.batches.Create(ctx, b); err != nil {
 		return nil, err
 	}
-	return b, uc.recalcStock(ctx, in.ProductID)
+	if err := uc.recalcStock(ctx, in.ProductID); err != nil {
+		return nil, err
+	}
+	// публикуем событие получения партии
+	if uc.events != nil {
+		_ = uc.events.PublishBatchReceived(ctx, BatchReceivedEvent{
+			ProductID:        product.ID,
+			ProductName:      product.Name,
+			TherapeuticGroup: product.TherapeuticGroup,
+			BatchID:          b.ID,
+			Quantity:         b.Quantity,
+			RetailPrice:      b.RetailPrice,
+			ExpiresAt:        b.ExpiresAt,
+			ReceivedAt:       b.ReceivedAt,
+		})
+	}
+	return b, nil
 }
 
 func (uc *InventoryUseCase) GetStock(ctx context.Context, productID string) (*domain.StockItem, error) {
@@ -132,11 +153,19 @@ func (uc *InventoryUseCase) GetStock(ctx context.Context, productID string) (*do
 }
 
 // DeductStock списывает qty единиц товара по FEFO.
-// Возвращает ID первой использованной партии, средневзвешенную розничную цену и ошибку.
-func (uc *InventoryUseCase) DeductStock(ctx context.Context, productID string, qty int, orderID string) (string, float64, error) {
+// Возвращает ID первой использованной партии, средневзвешенную розничную цену, имя продукта, терапевтическую группу и ошибку.
+func (uc *InventoryUseCase) DeductStock(ctx context.Context, productID string, qty int, orderID string) (string, float64, string, string, error) {
+	// получаем продукт для имени и терапевтической группы
+	product, err := uc.products.GetByID(ctx, productID)
+	if err != nil {
+		return "", 0, "", "", err
+	}
+	productName := product.Name
+	therapeuticGroup := product.TherapeuticGroup
+
 	batches, err := uc.batches.ListByProduct(ctx, productID)
 	if err != nil {
-		return "", 0, err
+		return "", 0, "", "", err
 	}
 
 	var available []*domain.Batch
@@ -163,10 +192,10 @@ func (uc *InventoryUseCase) DeductStock(ctx context.Context, productID string, q
 			deduct = b.Available()
 		}
 		if err := b.Deduct(deduct); err != nil {
-			return "", 0, err
+			return "", 0, "", "", err
 		}
 		if err := uc.batches.Save(ctx, b); err != nil {
-			return "", 0, err
+			return "", 0, "", "", err
 		}
 		if usedBatchID == "" {
 			usedBatchID = b.ID
@@ -176,11 +205,11 @@ func (uc *InventoryUseCase) DeductStock(ctx context.Context, productID string, q
 		remaining -= deduct
 	}
 	if remaining > 0 {
-		return "", 0, domain.ErrInsufficientStock
+		return "", 0, "", "", domain.ErrInsufficientStock
 	}
 
 	retailPrice := totalCost / float64(totalDeducted)
-	return usedBatchID, retailPrice, uc.recalcStock(ctx, productID)
+	return usedBatchID, retailPrice, productName, therapeuticGroup, uc.recalcStock(ctx, productID)
 }
 
 func (uc *InventoryUseCase) ListExpiringBatches(ctx context.Context, daysAhead int) ([]*domain.Batch, error) {
@@ -204,6 +233,21 @@ func (uc *InventoryUseCase) WriteOffExpired(ctx context.Context) (int, error) {
 		}
 		count++
 		_ = uc.recalcStock(ctx, b.ProductID)
+		// публикуем событие списания партии
+		if uc.events != nil {
+			product, err := uc.products.GetByID(ctx, b.ProductID)
+			if err == nil {
+				_ = uc.events.PublishBatchWrittenOff(ctx, BatchWrittenOffEvent{
+					ProductID:        product.ID,
+					ProductName:      product.Name,
+					TherapeuticGroup: product.TherapeuticGroup,
+					BatchID:          b.ID,
+					Quantity:         b.Quantity,
+					ExpiresAt:        b.ExpiresAt,
+					WrittenOffAt:     time.Now(),
+				})
+			}
+		}
 	}
 	return count, nil
 }

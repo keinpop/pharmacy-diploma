@@ -21,13 +21,15 @@ func NewProductRepository(db *sql.DB) *ProductRepository {
 func (r *ProductRepository) Create(ctx context.Context, p *domain.Product) error {
 	const query = `
 		INSERT INTO products
-			(id, name, trade_name, active_substance, form, dosage, category,
-			 storage_conditions, unit, reorder_point, created_at, updated_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`
+        (id, name, trade_name, active_substance, form, dosage,
+         category, storage_conditions, unit, therapeutic_group,
+         reorder_point, created_at, updated_at)
+    	VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`
 
 	_, err := r.db.ExecContext(ctx, query,
-		p.ID, p.Name, p.TradeName, p.ActiveSubstance, p.Form, p.Dosage,
-		string(p.Category), p.StorageConditions, p.Unit, p.ReorderPoint,
+		p.ID, p.Name, p.TradeName, p.ActiveSubstance,
+		p.Form, p.Dosage, string(p.Category), p.StorageConditions,
+		p.Unit, p.TherapeuticGroup, p.ReorderPoint,
 		p.CreatedAt, p.UpdatedAt,
 	)
 	if err != nil {
@@ -38,15 +40,18 @@ func (r *ProductRepository) Create(ctx context.Context, p *domain.Product) error
 
 func (r *ProductRepository) GetByID(ctx context.Context, id string) (*domain.Product, error) {
 	const query = `
-		SELECT id, name, trade_name, active_substance, form, dosage, category,
-		       storage_conditions, unit, reorder_point, created_at, updated_at
-		FROM products WHERE id = $1`
+		SELECT id, name, trade_name, active_substance, form, dosage,
+           category, storage_conditions, unit, therapeutic_group,
+           reorder_point, created_at, updated_at
+    	FROM products WHERE id = $1`
 
 	p := &domain.Product{}
 	var cat string
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
-		&p.ID, &p.Name, &p.TradeName, &p.ActiveSubstance, &p.Form, &p.Dosage,
-		&cat, &p.StorageConditions, &p.Unit, &p.ReorderPoint, &p.CreatedAt, &p.UpdatedAt,
+		&p.ID, &p.Name, &p.TradeName, &p.ActiveSubstance,
+		&p.Form, &p.Dosage, &p.Category, &p.StorageConditions,
+		&p.Unit, &p.TherapeuticGroup, &p.ReorderPoint,
+		&p.CreatedAt, &p.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -61,8 +66,9 @@ func (r *ProductRepository) GetByID(ctx context.Context, id string) (*domain.Pro
 func (r *ProductRepository) List(ctx context.Context, page, pageSize int) ([]*domain.Product, int, error) {
 	offset := (page - 1) * pageSize
 	const query = `
-		SELECT id, name, trade_name, active_substance, form, dosage, category,
-		       storage_conditions, unit, reorder_point, created_at, updated_at
+		SELECT id, name, trade_name, active_substance, form, dosage,
+           category, storage_conditions, unit, therapeutic_group,
+           reorder_point, created_at, updated_at
 		FROM products ORDER BY name LIMIT $1 OFFSET $2`
 
 	rows, err := r.db.QueryContext(ctx, query, pageSize, offset)
@@ -76,8 +82,10 @@ func (r *ProductRepository) List(ctx context.Context, page, pageSize int) ([]*do
 		p := &domain.Product{}
 		var cat string
 		if err := rows.Scan(
-			&p.ID, &p.Name, &p.TradeName, &p.ActiveSubstance, &p.Form, &p.Dosage,
-			&cat, &p.StorageConditions, &p.Unit, &p.ReorderPoint, &p.CreatedAt, &p.UpdatedAt,
+			&p.ID, &p.Name, &p.TradeName, &p.ActiveSubstance,
+			&p.Form, &p.Dosage, &p.Category, &p.StorageConditions,
+			&p.Unit, &p.TherapeuticGroup, &p.ReorderPoint,
+			&p.CreatedAt, &p.UpdatedAt,
 		); err != nil {
 			return nil, 0, fmt.Errorf("postgres.ProductRepository.List scan: %w", err)
 		}
@@ -94,13 +102,16 @@ func (r *ProductRepository) List(ctx context.Context, page, pageSize int) ([]*do
 
 func (r *ProductRepository) Update(ctx context.Context, p *domain.Product) error {
 	const query = `
-		UPDATE products SET name=$2, trade_name=$3, active_substance=$4, form=$5, dosage=$6,
-		category=$7, storage_conditions=$8, unit=$9, reorder_point=$10, updated_at=$11
-		WHERE id=$1`
+		UPDATE products SET
+        name=$2, trade_name=$3, active_substance=$4, form=$5,
+        dosage=$6, category=$7, storage_conditions=$8, unit=$9,
+        therapeutic_group=$10, reorder_point=$11, updated_at=$12
+    	WHERE id = $1`
 
 	_, err := r.db.ExecContext(ctx, query,
-		p.ID, p.Name, p.TradeName, p.ActiveSubstance, p.Form, p.Dosage,
-		string(p.Category), p.StorageConditions, p.Unit, p.ReorderPoint, p.UpdatedAt,
+		p.ID, p.Name, p.TradeName, p.ActiveSubstance,
+		p.Form, p.Dosage, p.Category, p.StorageConditions,
+		p.Unit, p.TherapeuticGroup, p.ReorderPoint, p.UpdatedAt,
 	)
 	if err != nil {
 		return fmt.Errorf("postgres.ProductRepository.Update: %w", err)

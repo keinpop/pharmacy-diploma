@@ -34,10 +34,10 @@ func AuthInterceptor(serviceToken string, authClient *AuthClient, logger *zap.Lo
 		if len(tokens) == 0 {
 			return nil, status.Error(codes.Unauthenticated, "missing authorization header")
 		}
-
 		token := strings.TrimPrefix(tokens[0], "Bearer ")
 		token = strings.TrimPrefix(token, "bearer ")
 
+		// Межсервисный вызов по service-токену
 		if token == serviceToken {
 			if hasRole(allowed, "service") {
 				return handler(ctx, req)
@@ -45,7 +45,8 @@ func AuthInterceptor(serviceToken string, authClient *AuthClient, logger *zap.Lo
 			return nil, status.Error(codes.PermissionDenied, "insufficient permissions")
 		}
 
-		_, role, err := authClient.ValidateToken(context.Background(), token)
+		// User-токен — валидируем через Auth сервис
+		_, role, err := authClient.ValidateToken(ctx, token)
 		if err != nil {
 			logger.Warn("token validation failed",
 				zap.String("method", info.FullMethod),
@@ -63,6 +64,7 @@ func AuthInterceptor(serviceToken string, authClient *AuthClient, logger *zap.Lo
 		}
 
 		ctx = context.WithValue(ctx, authTokenKey, token)
+
 		return handler(ctx, req)
 	}
 }

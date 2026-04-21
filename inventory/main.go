@@ -13,10 +13,10 @@ import (
 	_ "github.com/lib/pq"
 
 	"github.com/elastic/go-elasticsearch/v8"
-	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 
 	esadapter "pharmacy/inventory/adapter/elastic"
+	kafkaadapter "pharmacy/inventory/adapter/kafka"
 	pgadapter "pharmacy/inventory/adapter/postgres"
 	grpcapp "pharmacy/inventory/app/grpc"
 	"pharmacy/inventory/config"
@@ -27,28 +27,21 @@ func main() {
 	logger, _ := zap.NewProduction()
 	defer logger.Sync()
 
-	cfg, err := config.Load()
-	if err != nil {
-		log.Fatalf("config: %v", err)
-	}
+	cfg := config.Load()
 
 	// Postgres
-	db, err := connectPostgres(cfg.Postgres.DSN)
+	db, err := connectPostgres(cfg.PostgresDSN)
 	if err != nil {
 		log.Fatalf("postgres: %v", err)
 	}
 	defer db.Close()
 
-	// Redis (зарезервировано для кэша)
-	_ = redis.NewClient(&redis.Options{
-		Addr:     cfg.Redis.Addr,
-		Password: cfg.Redis.Password,
-		DB:       cfg.Redis.DB,
-	})
+	kafkaProducer := kafkaadapter.NewKafkaProducer(cfg.KafkaBrokers, logger)
+	defer kafkaProducer.Close()
 
 	// Elasticsearch
 	esClient, err := elasticsearch.NewClient(elasticsearch.Config{
-		Addresses: cfg.Elasticsearch.Addresses,
+		Addresses: []string{cfg.ESAddresses},
 	})
 	if err != nil {
 		logger.Fatal("elasticsearch connect", zap.Error(err))
@@ -73,11 +66,19 @@ func main() {
 	}
 
 	// Use-case
-	uc := usecase.NewInventoryUseCase(batchRepo, stockRepo, productRepo, searchRepo, cfg.Inventory.ExpiringSoonDays)
+
+	uc := usecase.NewInventoryUseCase(
+		batchRepo,
+		stockRepo,
+		productRepo,
+		searchRepo,
+		kafkaProducer,
+		cfg.ExpiringSoonDays,
+	)
 
 	// gRPC server
 	handler := grpcapp.NewHandler(uc)
-	srv := grpcapp.NewServer(cfg.GRPC.Port, handler, authClient, logger, cfg.ServiceToken)
+	srv := grpcapp.NewServer(cfg.GRPCPort, handler, authClient, logger, cfg.ServiceToken)
 
 	go func() {
 		if err := srv.Run(); err != nil {

@@ -26,7 +26,7 @@ func NewInventoryClient(addr string) (*InventoryClient, error) {
 	return &InventoryClient{client: inventorypb.NewInventoryServiceClient(conn)}, nil
 }
 
-func (c *InventoryClient) DeductStock(ctx context.Context, productID string, qty int, orderID string) (string, float64, error) {
+func (c *InventoryClient) DeductStock(ctx context.Context, productID string, qty int, orderID string) (string, float64, string, string, error) {
 	token := grpcapp.AuthTokenFromContext(ctx)
 	if token != "" {
 		fmt.Println("hello, token")
@@ -39,7 +39,7 @@ func (c *InventoryClient) DeductStock(ctx context.Context, productID string, qty
 		OrderId:   orderID,
 	})
 	if err != nil {
-		return "", 0, err
+		return "", 0, "", "", err
 	}
-	return resp.BatchId, resp.RetailPrice, nil
+	return resp.BatchId, resp.RetailPrice, resp.ProductName, resp.TherapeuticGroup, nil
 }

@@ -8,9 +8,9 @@ import (
 )
 
 var (
-	ErrEmptyItems    = errors.New("sale must have at least one item")
-	ErrInvalidQty    = errors.New("item quantity must be positive")
-	ErrSaleNotFound  = errors.New("sale not found")
+	ErrEmptyItems   = errors.New("sale must have at least one item")
+	ErrInvalidQty   = errors.New("item quantity must be positive")
+	ErrSaleNotFound = errors.New("sale not found")
 )
 
 type SaleItem struct {

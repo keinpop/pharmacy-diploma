@@ -58,9 +58,9 @@ func (m *MockUC) GetStock(ctx context.Context, productID string) (*domain.StockI
 	}
 	return nil, args.Error(1)
 }
-func (m *MockUC) DeductStock(ctx context.Context, productID string, qty int, orderID string) (string, float64, error) {
+func (m *MockUC) DeductStock(ctx context.Context, productID string, qty int, orderID string) (string, float64, string, string, error) {
 	args := m.Called(ctx, productID, qty, orderID)
-	return args.String(0), float64(args.Int(0)), args.Error(1)
+	return args.String(0), float64(args.Int(0)), args.String(0), args.String(0), args.Error(1)
 }
 func (m *MockUC) ListExpiringBatches(ctx context.Context, days int) ([]*domain.Batch, error) {
 	args := m.Called(ctx, days)

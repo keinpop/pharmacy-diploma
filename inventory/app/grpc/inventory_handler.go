@@ -2,7 +2,6 @@ package grpc
 
 import (
 	"context"
-	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -27,6 +26,7 @@ func (h *Handler) CreateProduct(ctx context.Context, req *pb.CreateProductReques
 		Name: req.Name, TradeName: req.TradeName, ActiveSubstance: req.ActiveSubstance,
 		Form: req.Form, Dosage: req.Dosage, Category: domain.Category(req.Category),
 		StorageConditions: req.StorageConditions, Unit: req.Unit, ReorderPoint: int(req.ReorderPoint),
+		TherapeuticGroup: req.TherapeuticGroup,
 	})
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
@@ -92,11 +92,17 @@ func (h *Handler) GetStock(ctx context.Context, req *pb.GetStockRequest) (*pb.Ge
 }
 
 func (h *Handler) DeductStock(ctx context.Context, req *pb.DeductStockRequest) (*pb.DeductStockResponse, error) {
-	batchID, retailPrice, err := h.uc.DeductStock(ctx, req.ProductId, int(req.Quantity), req.OrderId)
+	batchID, retailPrice, productName, therapeuticGroup, err := h.uc.DeductStock(ctx, req.ProductId, int(req.Quantity), req.OrderId)
 	if err != nil {
 		return nil, status.Error(codes.FailedPrecondition, err.Error())
 	}
-	return &pb.DeductStockResponse{Success: true, BatchId: batchID, RetailPrice: retailPrice}, nil
+	return &pb.DeductStockResponse{
+		Success:          true,
+		BatchId:          batchID,
+		RetailPrice:      retailPrice,
+		ProductName:      productName,
+		TherapeuticGroup: therapeuticGroup,
+	}, nil
 }
 
 func (h *Handler) ListExpiringBatches(ctx context.Context, req *pb.ListExpiringRequest) (*pb.ListExpiringResponse, error) {
@@ -134,8 +140,9 @@ func productToPB(p *domain.Product) *pb.Product {
 		Id: p.ID, Name: p.Name, TradeName: p.TradeName, ActiveSubstance: p.ActiveSubstance,
 		Form: p.Form, Dosage: p.Dosage, Category: string(p.Category),
 		StorageConditions: p.StorageConditions, Unit: p.Unit, ReorderPoint: int32(p.ReorderPoint),
-		CreatedAt: timestamppb.New(p.CreatedAt),
-		UpdatedAt: timestamppb.New(p.UpdatedAt),
+		CreatedAt:        timestamppb.New(p.CreatedAt),
+		UpdatedAt:        timestamppb.New(p.UpdatedAt),
+		TherapeuticGroup: p.TherapeuticGroup,
 	}
 }
 
@@ -181,6 +188,3 @@ func stockToPB(s *domain.StockItem) *pb.StockItem {
 		LowStock:      s.LowStock(),
 	}
 }
-
-// keep time import
-var _ = time.Now

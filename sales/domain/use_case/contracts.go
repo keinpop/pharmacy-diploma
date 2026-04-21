@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"time"
 
 	"pharmacy/sales/domain"
 )
@@ -15,7 +16,23 @@ type SaleRepository interface {
 
 // InventoryClient — порт для взаимодействия с Inventory сервисом.
 type InventoryClient interface {
-	DeductStock(ctx context.Context, productID string, qty int, orderID string) (batchID string, retailPrice float64, err error)
+	DeductStock(ctx context.Context, productID string, qty int, orderID string) (batchID string, retailPrice float64, productName string, therapeuticGroup string, err error)
+}
+
+// EventPublisher — порт для публикации событий в Kafka.
+type EventPublisher interface {
+	PublishSaleCompleted(ctx context.Context, event SaleCompletedEvent) error
+}
+
+// SaleCompletedEvent — событие завершения продажи.
+type SaleCompletedEvent struct {
+	ProductID        string    `json:"product_id"`
+	ProductName      string    `json:"product_name"`
+	TherapeuticGroup string    `json:"therapeutic_group"`
+	Quantity         int       `json:"quantity"`
+	PricePerUnit     float64   `json:"price_per_unit"`
+	TotalPrice       float64   `json:"total_price"`
+	SoldAt           time.Time `json:"sold_at"`
 }
 
 type CreateSaleItemInput struct {

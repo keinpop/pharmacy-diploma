@@ -1,10 +1,11 @@
-FROM golang:1.22-alpine AS builder
+FROM golang:1.23-alpine AS builder
 WORKDIR /app
 
-COPY go.work go.work.sum ./
+COPY go.work ./
 COPY auth/go.mod auth/go.sum auth/
 COPY inventory/go.mod inventory/go.sum inventory/
 COPY sales/go.mod sales/go.sum sales/
+COPY analytics/go.mod analytics/go.sum analytics/
 
 RUN go work sync
 
@@ -14,7 +15,6 @@ COPY sales/ .
 RUN CGO_ENABLED=0 GOOS=linux go build -o /sales .
 
 FROM alpine:3.19
-RUN apk --no-cache add ca-certificates tzdata
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /sales /sales
-EXPOSE 50054
-ENTRYPOINT ["/sales"]
+CMD ["/sales"]

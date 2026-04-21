@@ -8,6 +8,7 @@ type Config struct {
 	AuthAddr      string
 	InventoryAddr string
 	ServiceToken  string
+	KafkaBrokers  string
 }
 
 func Load() *Config {
@@ -17,6 +18,7 @@ func Load() *Config {
 		AuthAddr:      getEnv("AUTH_ADDR", "auth:50051"),
 		InventoryAddr: getEnv("INVENTORY_ADDR", "inventory:50053"),
 		ServiceToken:  getEnv("SERVICE_TOKEN", "internal-service-secret"),
+		KafkaBrokers:  getEnv("KAFKA_BROKERS", "kafka:9092"),
 	}
 }
 
