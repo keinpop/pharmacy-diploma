@@ -68,6 +68,7 @@ func makeHandler(uc appgrpc.AuthUseCasePort) *appgrpc.AuthHandler {
 // Register ─
 
 func TestAuthHandler_Register(t *testing.T) {
+	t.Parallel()
 	validUser := &domain.User{ID: 1, Username: "alice", Role: domain.RolePharmacist}
 
 	tests := []struct {
@@ -124,6 +125,7 @@ func TestAuthHandler_Register(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			uc := &mockUseCase{}
 			tt.setup(uc)
 			h := makeHandler(uc)
@@ -143,6 +145,7 @@ func TestAuthHandler_Register(t *testing.T) {
 // Login
 
 func TestAuthHandler_Login(t *testing.T) {
+	t.Parallel()
 	validUser := &domain.User{ID: 2, Username: "bob", Role: domain.RoleAdmin}
 
 	tests := []struct {
@@ -175,6 +178,7 @@ func TestAuthHandler_Login(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			uc := &mockUseCase{}
 			tt.setup(uc)
 			h := makeHandler(uc)
@@ -193,6 +197,7 @@ func TestAuthHandler_Login(t *testing.T) {
 // ValidateToken
 
 func TestAuthHandler_ValidateToken(t *testing.T) {
+	t.Parallel()
 	validUser := &domain.User{ID: 3, Username: "carol", Role: domain.RolePharmacist}
 
 	tests := []struct {
@@ -221,6 +226,7 @@ func TestAuthHandler_ValidateToken(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			uc := &mockUseCase{}
 			tt.setup(uc)
 			h := makeHandler(uc)
@@ -239,6 +245,7 @@ func TestAuthHandler_ValidateToken(t *testing.T) {
 // Logout ─
 
 func TestAuthHandler_Logout(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		token    string
@@ -265,6 +272,7 @@ func TestAuthHandler_Logout(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			uc := &mockUseCase{}
 			tt.setup(uc)
 			h := makeHandler(uc)

@@ -45,145 +45,167 @@ func (m *MockEventPublisher) PublishSaleCompleted(ctx context.Context, event use
 	return m.Called(ctx, event).Error(0)
 }
 
+// staticSeller возвращает фиксированный username из контекста.
+func staticSeller(name string) usecase.SellerProvider {
+	return func(context.Context) string { return name }
+}
+
 // — tests —
 
-func TestCreateSale(t *testing.T) {
+func TestSalesUseCase_CreateSale(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		input       usecase.CreateSaleInput
-		setupMocks  func(repo *MockSaleRepo, inv *MockInventoryClient)
-		wantErr     bool
-		errContains string
+		seller      usecase.SellerProvider
+		setupMocks  func(repo *MockSaleRepo, inv *MockInventoryClient, pub *MockEventPublisher)
+		wantErr     error
+		wantItemQty int
+		wantSeller  string
 	}{
 		{
-			name:       "empty items",
+			name:       "пустой список позиций",
 			input:      usecase.CreateSaleInput{Items: nil},
-			wantErr:    true,
-			setupMocks: func(repo *MockSaleRepo, inv *MockInventoryClient) {},
+			seller:     staticSeller("alice"),
+			setupMocks: func(repo *MockSaleRepo, inv *MockInventoryClient, pub *MockEventPublisher) {},
+			wantErr:    domain.ErrEmptyItems,
 		},
 		{
-			name: "inventory deduct fails",
+			name: "отсутствует seller в context",
 			input: usecase.CreateSaleInput{
-				Items: []usecase.CreateSaleItemInput{
-					{ProductID: "p1", Quantity: 5},
-				},
+				Items: []usecase.CreateSaleItemInput{{ProductID: "p1", Quantity: 1}},
 			},
-			setupMocks: func(repo *MockSaleRepo, inv *MockInventoryClient) {
+			seller:     staticSeller(""),
+			setupMocks: func(repo *MockSaleRepo, inv *MockInventoryClient, pub *MockEventPublisher) {},
+			wantErr:    domain.ErrEmptySeller,
+		},
+		{
+			name: "ошибка списания со склада",
+			input: usecase.CreateSaleInput{
+				Items: []usecase.CreateSaleItemInput{{ProductID: "p1", Quantity: 5}},
+			},
+			seller: staticSeller("alice"),
+			setupMocks: func(repo *MockSaleRepo, inv *MockInventoryClient, pub *MockEventPublisher) {
 				inv.On("DeductStock", mock.Anything, "p1", 5, "").
 					Return("", float64(0), "", "", errors.New("insufficient stock"))
 			},
-			wantErr: true,
+			wantErr: errors.New("insufficient stock"),
 		},
 		{
-			name: "single item success",
+			name: "успешная одиночная позиция",
 			input: usecase.CreateSaleInput{
-				Items: []usecase.CreateSaleItemInput{
-					{ProductID: "p1", Quantity: 3},
-				},
+				Items: []usecase.CreateSaleItemInput{{ProductID: "p1", Quantity: 3}},
 			},
-			setupMocks: func(repo *MockSaleRepo, inv *MockInventoryClient) {
+			seller: staticSeller("alice"),
+			setupMocks: func(repo *MockSaleRepo, inv *MockInventoryClient, pub *MockEventPublisher) {
 				inv.On("DeductStock", mock.Anything, "p1", 3, "").
-					Return("batch-1", float64(150.50), "Aspirin", "painkiller", nil)
-				repo.On("Create", mock.Anything, mock.AnythingOfType("*domain.Sale")).
-					Return(nil)
+					Return("batch-1", float64(150.50), "Aspirin", "анальгетики", nil)
+				repo.On("Create", mock.Anything, mock.AnythingOfType("*domain.Sale")).Return(nil)
+				pub.On("PublishSaleCompleted", mock.Anything, mock.AnythingOfType("usecase.SaleCompletedEvent")).Return(nil)
 			},
-			wantErr: false,
+			wantItemQty: 1,
+			wantSeller:  "alice",
 		},
 		{
-			name: "multiple items success",
+			name: "успешные несколько позиций",
 			input: usecase.CreateSaleInput{
 				Items: []usecase.CreateSaleItemInput{
 					{ProductID: "p1", Quantity: 2},
 					{ProductID: "p2", Quantity: 1},
 				},
 			},
-			setupMocks: func(repo *MockSaleRepo, inv *MockInventoryClient) {
+			seller: staticSeller("bob"),
+			setupMocks: func(repo *MockSaleRepo, inv *MockInventoryClient, pub *MockEventPublisher) {
 				inv.On("DeductStock", mock.Anything, "p1", 2, "").
-					Return("batch-1", float64(100.0), "Aspirin", "painkiller", nil)
+					Return("batch-1", float64(100), "Aspirin", "анальгетики", nil)
 				inv.On("DeductStock", mock.Anything, "p2", 1, "").
-					Return("batch-2", float64(200.0), "Loratadine", "antihistamine", nil)
-				repo.On("Create", mock.Anything, mock.AnythingOfType("*domain.Sale")).
-					Return(nil)
+					Return("batch-2", float64(200), "Loratadine", "антигистаминные", nil)
+				repo.On("Create", mock.Anything, mock.AnythingOfType("*domain.Sale")).Return(nil)
+				pub.On("PublishSaleCompleted", mock.Anything, mock.AnythingOfType("usecase.SaleCompletedEvent")).Return(nil)
 			},
-			wantErr: false,
+			wantItemQty: 2,
+			wantSeller:  "bob",
 		},
 		{
-			name: "repo create fails",
+			name: "ошибка БД при сохранении",
 			input: usecase.CreateSaleInput{
-				Items: []usecase.CreateSaleItemInput{
-					{ProductID: "p1", Quantity: 1},
-				},
+				Items: []usecase.CreateSaleItemInput{{ProductID: "p1", Quantity: 1}},
 			},
-			setupMocks: func(repo *MockSaleRepo, inv *MockInventoryClient) {
+			seller: staticSeller("alice"),
+			setupMocks: func(repo *MockSaleRepo, inv *MockInventoryClient, pub *MockEventPublisher) {
 				inv.On("DeductStock", mock.Anything, "p1", 1, "").
-					Return("batch-1", float64(50.0), "Aspirin", "painkiller", nil)
+					Return("batch-1", float64(50), "Aspirin", "анальгетики", nil)
 				repo.On("Create", mock.Anything, mock.AnythingOfType("*domain.Sale")).
 					Return(errors.New("db error"))
 			},
-			wantErr: true,
+			wantErr: errors.New("db error"),
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			repo := new(MockSaleRepo)
 			inv := new(MockInventoryClient)
-			tc.setupMocks(repo, inv)
+			pub := new(MockEventPublisher)
+			tc.setupMocks(repo, inv, pub)
 
-			uc := usecase.NewSalesUseCase(repo, inv, nil)
+			uc := usecase.NewSalesUseCase(repo, inv, pub, tc.seller)
 			sale, err := uc.CreateSale(context.Background(), tc.input)
 
-			if tc.wantErr {
+			if tc.wantErr != nil {
 				require.Error(t, err)
+				assert.Contains(t, err.Error(), tc.wantErr.Error())
 				assert.Nil(t, sale)
 				return
 			}
 			require.NoError(t, err)
 			require.NotNil(t, sale)
 			assert.NotEmpty(t, sale.ID)
-			assert.Equal(t, len(tc.input.Items), len(sale.Items))
+			assert.Equal(t, tc.wantItemQty, len(sale.Items))
+			assert.Equal(t, tc.wantSeller, sale.SellerUsername)
 		})
 	}
 }
 
-func TestGetSale(t *testing.T) {
+func TestSalesUseCase_GetSale(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		id      string
 		setup   func(repo *MockSaleRepo)
-		wantErr bool
+		wantErr error
 	}{
 		{
-			name: "found",
+			name: "найдено",
 			id:   "sale-1",
 			setup: func(repo *MockSaleRepo) {
 				repo.On("GetByID", mock.Anything, "sale-1").
-					Return(&domain.Sale{ID: "sale-1"}, nil)
+					Return(&domain.Sale{ID: "sale-1", SellerUsername: "alice"}, nil)
 			},
-			wantErr: false,
 		},
 		{
-			name: "not found",
+			name: "не найдено",
 			id:   "bad",
 			setup: func(repo *MockSaleRepo) {
-				repo.On("GetByID", mock.Anything, "bad").
-					Return(nil, domain.ErrSaleNotFound)
+				repo.On("GetByID", mock.Anything, "bad").Return(nil, domain.ErrSaleNotFound)
 			},
-			wantErr: true,
+			wantErr: domain.ErrSaleNotFound,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			repo := new(MockSaleRepo)
 			inv := new(MockInventoryClient)
 			tc.setup(repo)
 
-			uc := usecase.NewSalesUseCase(repo, inv, nil)
+			uc := usecase.NewSalesUseCase(repo, inv, nil, staticSeller("alice"))
 			sale, err := uc.GetSale(context.Background(), tc.id)
 
-			if tc.wantErr {
-				require.Error(t, err)
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr)
 				return
 			}
 			require.NoError(t, err)
@@ -192,7 +214,8 @@ func TestGetSale(t *testing.T) {
 	}
 }
 
-func TestListSales(t *testing.T) {
+func TestSalesUseCase_ListSales(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		page     int
@@ -202,7 +225,7 @@ func TestListSales(t *testing.T) {
 		wantErr  bool
 	}{
 		{
-			name: "defaults for invalid page",
+			name: "page=0, pageSize=0 — применяются дефолты 1/20",
 			page: 0, pageSize: 0,
 			setup: func(repo *MockSaleRepo) {
 				repo.On("List", mock.Anything, 1, 20).
@@ -211,7 +234,7 @@ func TestListSales(t *testing.T) {
 			wantLen: 1,
 		},
 		{
-			name: "custom pagination",
+			name: "кастомная пагинация",
 			page: 2, pageSize: 5,
 			setup: func(repo *MockSaleRepo) {
 				repo.On("List", mock.Anything, 2, 5).
@@ -219,15 +242,25 @@ func TestListSales(t *testing.T) {
 			},
 			wantLen: 0,
 		},
+		{
+			name: "ошибка БД",
+			page: 1, pageSize: 10,
+			setup: func(repo *MockSaleRepo) {
+				repo.On("List", mock.Anything, 1, 10).
+					Return([]*domain.Sale{}, 0, errors.New("db"))
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			repo := new(MockSaleRepo)
 			inv := new(MockInventoryClient)
 			tc.setup(repo)
 
-			uc := usecase.NewSalesUseCase(repo, inv, nil)
+			uc := usecase.NewSalesUseCase(repo, inv, nil, staticSeller("alice"))
 			sales, _, err := uc.ListSales(context.Background(), tc.page, tc.pageSize)
 
 			if tc.wantErr {

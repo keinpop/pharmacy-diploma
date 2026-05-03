@@ -22,13 +22,15 @@ func (r *SaleRepository) Create(ctx context.Context, sale *domain.Sale) error {
 	if err != nil {
 		return fmt.Errorf("postgres.SaleRepository.Create begin tx: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	const insertSale = `
-		INSERT INTO sales (id, total_amount, sold_at)
-		VALUES ($1, $2, $3)`
+		INSERT INTO sales (id, total_amount, sold_at, seller_username)
+		VALUES ($1, $2, $3, $4)`
 
-	if _, err := tx.ExecContext(ctx, insertSale, sale.ID, sale.TotalAmount, sale.SoldAt); err != nil {
+	if _, err := tx.ExecContext(ctx, insertSale,
+		sale.ID, sale.TotalAmount, sale.SoldAt, sale.SellerUsername,
+	); err != nil {
 		return fmt.Errorf("postgres.SaleRepository.Create sale: %w", err)
 	}
 
@@ -49,11 +51,13 @@ func (r *SaleRepository) Create(ctx context.Context, sale *domain.Sale) error {
 }
 
 func (r *SaleRepository) GetByID(ctx context.Context, id string) (*domain.Sale, error) {
-	const saleQuery = `SELECT id, total_amount, sold_at FROM sales WHERE id = $1`
+	const saleQuery = `
+		SELECT id, total_amount, sold_at, COALESCE(seller_username, '')
+		FROM sales WHERE id = $1`
 
 	sale := &domain.Sale{}
 	err := r.db.QueryRowContext(ctx, saleQuery, id).
-		Scan(&sale.ID, &sale.TotalAmount, &sale.SoldAt)
+		Scan(&sale.ID, &sale.TotalAmount, &sale.SoldAt, &sale.SellerUsername)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, domain.ErrSaleNotFound
@@ -93,7 +97,7 @@ func (r *SaleRepository) List(ctx context.Context, page, pageSize int) ([]*domai
 	}
 
 	const salesQuery = `
-		SELECT id, total_amount, sold_at
+		SELECT id, total_amount, sold_at, COALESCE(seller_username, '')
 		FROM sales ORDER BY sold_at DESC LIMIT $1 OFFSET $2`
 
 	rows, err := r.db.QueryContext(ctx, salesQuery, pageSize, offset)
@@ -105,13 +109,12 @@ func (r *SaleRepository) List(ctx context.Context, page, pageSize int) ([]*domai
 	var sales []*domain.Sale
 	for rows.Next() {
 		s := &domain.Sale{}
-		if err := rows.Scan(&s.ID, &s.TotalAmount, &s.SoldAt); err != nil {
+		if err := rows.Scan(&s.ID, &s.TotalAmount, &s.SoldAt, &s.SellerUsername); err != nil {
 			return nil, 0, fmt.Errorf("postgres.SaleRepository.List scan: %w", err)
 		}
 		sales = append(sales, s)
 	}
 
-	// Load items for each sale
 	for _, sale := range sales {
 		const itemsQuery = `
 			SELECT id, sale_id, product_id, quantity, price_per_unit, total_price

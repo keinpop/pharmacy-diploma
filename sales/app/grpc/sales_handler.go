@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"context"
+	"errors"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -34,7 +35,14 @@ func (h *Handler) CreateSale(ctx context.Context, req *pb.CreateSaleRequest) (*p
 
 	sale, err := h.uc.CreateSale(ctx, usecase.CreateSaleInput{Items: items})
 	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+		switch {
+		case errors.Is(err, domain.ErrEmptyItems),
+			errors.Is(err, domain.ErrInvalidQty),
+			errors.Is(err, domain.ErrEmptySeller):
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		default:
+			return nil, status.Error(codes.Internal, err.Error())
+		}
 	}
 
 	return &pb.CreateSaleResponse{Sale: saleToPB(sale)}, nil
@@ -43,7 +51,7 @@ func (h *Handler) CreateSale(ctx context.Context, req *pb.CreateSaleRequest) (*p
 func (h *Handler) GetSale(ctx context.Context, req *pb.GetSaleRequest) (*pb.GetSaleResponse, error) {
 	sale, err := h.uc.GetSale(ctx, req.Id)
 	if err != nil {
-		if err == domain.ErrSaleNotFound {
+		if errors.Is(err, domain.ErrSaleNotFound) {
 			return nil, status.Error(codes.NotFound, err.Error())
 		}
 		return nil, status.Error(codes.Internal, err.Error())
@@ -79,9 +87,10 @@ func saleToPB(s *domain.Sale) *pb.Sale {
 		})
 	}
 	return &pb.Sale{
-		Id:          s.ID,
-		Items:       items,
-		TotalAmount: s.TotalAmount,
-		SoldAt:      timestamppb.New(s.SoldAt),
+		Id:             s.ID,
+		Items:          items,
+		TotalAmount:    s.TotalAmount,
+		SoldAt:         timestamppb.New(s.SoldAt),
+		SellerUsername: s.SellerUsername,
 	}
 }

@@ -128,10 +128,10 @@ func (h *Handler) GetWriteOffReport(ctx context.Context, req *pb.GetReportReques
 			resp.TotalWrittenOff = int32(result.TotalWrittenOff)
 			for _, item := range result.Items {
 				resp.Items = append(resp.Items, &pb.WriteOffReportItem{
-					ProductId:         item.ProductID,
-					ProductName:       item.ProductName,
+					ProductId:          item.ProductID,
+					ProductName:        item.ProductName,
 					QuantityWrittenOff: int32(item.QtyWrittenOff),
-					LossAmount:        item.LossAmount,
+					LossAmount:         item.LossAmount,
 				})
 			}
 		}

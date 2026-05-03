@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -17,6 +18,7 @@ import (
 	kafkaadapter "pharmacy/sales/adapter/kafka"
 	pgadapter "pharmacy/sales/adapter/postgres"
 	grpcapp "pharmacy/sales/app/grpc"
+	"pharmacy/sales/app/metrics"
 	"pharmacy/sales/config"
 	usecase "pharmacy/sales/domain/use_case"
 )
@@ -28,7 +30,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer logger.Sync()
+	defer func() { _ = logger.Sync() }()
 
 	db, err := connectPostgres(cfg.PostgresDSN)
 	if err != nil {
@@ -50,7 +52,9 @@ func main() {
 	}
 
 	saleRepo := pgadapter.NewSaleRepository(db)
-	salesUC := usecase.NewSalesUseCase(saleRepo, inventoryClient, kafkaProducer)
+	// SellerProvider достаёт username из context — его туда кладёт AuthInterceptor,
+	// который, в свою очередь, читает данные из JWT через auth-сервис.
+	salesUC := usecase.NewSalesUseCase(saleRepo, inventoryClient, kafkaProducer, grpcapp.AuthUsernameFromContext)
 
 	handler := grpcapp.NewHandler(salesUC)
 	srv := grpcapp.NewServer(cfg.GRPCPort, handler, authClient, logger, cfg.ServiceToken)
@@ -61,11 +65,27 @@ func main() {
 		}
 	}()
 
+	go runMetricsServer(cfg.MetricsAddr, logger)
+
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	logger.Info("shutting down sales service")
 	srv.Stop()
+}
+
+func runMetricsServer(addr string, logger *zap.Logger) {
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", metrics.Handler())
+	server := &http.Server{
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+	logger.Info("metrics endpoint listening", zap.String("addr", addr))
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		logger.Warn("metrics server stopped", zap.Error(err))
+	}
 }
 
 func connectPostgres(dsn string) (*sql.DB, error) {

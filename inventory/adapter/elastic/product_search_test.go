@@ -52,6 +52,7 @@ func newTestRepo(t *testing.T, responseBody []byte, wantStatusCode int) *esadapt
 //  IndexProduct
 
 func TestIndexProduct(t *testing.T) {
+	t.Parallel()
 	okBody, _ := json.Marshal(map[string]any{"result": "created"})
 
 	tests := []struct {
@@ -76,6 +77,7 @@ func TestIndexProduct(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			repo := newTestRepo(t, okBody, tc.statusCode)
 			err := repo.IndexProduct(context.Background(), tc.product)
 			if tc.wantErr {
@@ -90,6 +92,7 @@ func TestIndexProduct(t *testing.T) {
 //  Search
 
 func TestSearch(t *testing.T) {
+	t.Parallel()
 	aspirin := map[string]any{
 		"id": "p1", "name": "Аспирин", "trade_name": "Aspirin Cardio",
 		"active_substance": "аск", "form": "таблетка", "dosage": "100мг", "category": "otc",
@@ -134,6 +137,7 @@ func TestSearch(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			repo := newTestRepo(t, esResponse(tc.esProducts), http.StatusOK)
 			products, err := repo.Search(context.Background(), tc.query, tc.limit)
 			require.NoError(t, err)
@@ -148,6 +152,7 @@ func TestSearch(t *testing.T) {
 //  SearchBySubstance
 
 func TestSearchBySubstance(t *testing.T) {
+	t.Parallel()
 	aspirin := map[string]any{
 		"id": "p1", "name": "Аспирин", "active_substance": "аск", "category": "otc",
 	}
@@ -190,6 +195,7 @@ func TestSearchBySubstance(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			repo := newTestRepo(t, esResponse(tc.esProducts), http.StatusOK)
 			products, err := repo.SearchBySubstance(context.Background(), tc.substance, tc.limit)
 			require.NoError(t, err)

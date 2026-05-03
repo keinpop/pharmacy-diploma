@@ -27,6 +27,7 @@ func newTestRepo(t *testing.T) (*redisrepo.SessionRepository, *miniredis.Minired
 // Set ─
 
 func TestSessionRepository_Set(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		token   string
@@ -40,6 +41,7 @@ func TestSessionRepository_Set(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			repo, _ := newTestRepo(t)
 			err := repo.Set(context.Background(), tt.token, tt.userID, tt.ttl)
 			assert.NoError(t, err)
@@ -50,6 +52,7 @@ func TestSessionRepository_Set(t *testing.T) {
 // Get ─
 
 func TestSessionRepository_Get(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		setup      func(*redisrepo.SessionRepository)
@@ -84,6 +87,7 @@ func TestSessionRepository_Get(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			repo, mr := newTestRepo(t)
 			tt.setup(repo)
 
@@ -108,6 +112,7 @@ func TestSessionRepository_Get(t *testing.T) {
 // Delete ─
 
 func TestSessionRepository_Delete(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name  string
 		setup func(*redisrepo.SessionRepository)
@@ -129,6 +134,7 @@ func TestSessionRepository_Delete(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			repo, _ := newTestRepo(t)
 			tt.setup(repo)
 

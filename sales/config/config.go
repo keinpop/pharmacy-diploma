@@ -9,6 +9,7 @@ type Config struct {
 	InventoryAddr string
 	ServiceToken  string
 	KafkaBrokers  string
+	MetricsAddr   string
 }
 
 func Load() *Config {
@@ -19,6 +20,7 @@ func Load() *Config {
 		InventoryAddr: getEnv("INVENTORY_ADDR", "inventory:50053"),
 		ServiceToken:  getEnv("SERVICE_TOKEN", "internal-service-secret"),
 		KafkaBrokers:  getEnv("KAFKA_BROKERS", "kafka:9092"),
+		MetricsAddr:   getEnv("METRICS_ADDR", ":9104"),
 	}
 }
 

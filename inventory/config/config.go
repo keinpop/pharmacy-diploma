@@ -14,6 +14,7 @@ type Config struct {
 	ServiceToken     string
 	AuthAddr         string
 	KafkaBrokers     string
+	MetricsAddr      string
 }
 
 func Load() *Config {
@@ -26,6 +27,7 @@ func Load() *Config {
 		ServiceToken:     getEnv("SERVICE_TOKEN", "internal-service-secret"),
 		AuthAddr:         getEnv("AUTH_ADDR", "auth:50051"),
 		KafkaBrokers:     getEnv("KAFKA_BROKERS", "kafka:9092"),
+		MetricsAddr:      getEnv("METRICS_ADDR", ":9103"),
 	}
 }
 

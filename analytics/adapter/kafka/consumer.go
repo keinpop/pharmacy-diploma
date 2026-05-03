@@ -9,6 +9,7 @@ import (
 	"go.uber.org/zap"
 
 	chchadapter "pharmacy/analytics/adapter/clickhouse"
+	"pharmacy/analytics/app/metrics"
 )
 
 // StartConsumers launches three Kafka consumer goroutines:
@@ -48,7 +49,9 @@ func consumeSales(ctx context.Context, brokers []string, eventRepo *chchadapter.
 
 		if err := eventRepo.InsertSaleEvent(ctx, event); err != nil {
 			logger.Warn("sales consumer insert error", zap.Error(err))
+			continue
 		}
+		metrics.KafkaEventsConsumed.WithLabelValues(topic).Inc()
 	}
 }
 
@@ -79,7 +82,9 @@ func consumeWriteOffs(ctx context.Context, brokers []string, eventRepo *chchadap
 
 		if err := eventRepo.InsertWriteOffEvent(ctx, event); err != nil {
 			logger.Warn("write-off consumer insert error", zap.Error(err))
+			continue
 		}
+		metrics.KafkaEventsConsumed.WithLabelValues(topic).Inc()
 	}
 }
 
@@ -110,6 +115,8 @@ func consumeReceived(ctx context.Context, brokers []string, eventRepo *chchadapt
 
 		if err := eventRepo.InsertReceivedEvent(ctx, event); err != nil {
 			logger.Warn("received consumer insert error", zap.Error(err))
+			continue
 		}
+		metrics.KafkaEventsConsumed.WithLabelValues(topic).Inc()
 	}
 }

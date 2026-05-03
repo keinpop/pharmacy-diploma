@@ -27,6 +27,7 @@ var stockCols = []string{"product_id", "total_quantity", "reserved", "reorder_po
 //  GetByProduct
 
 func TestStockRepository_GetByProduct(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name         string
 		productID    string
@@ -71,6 +72,7 @@ func TestStockRepository_GetByProduct(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			repo, mock := newStockRepo(t)
 			tc.setup(mock)
 
@@ -93,6 +95,7 @@ func TestStockRepository_GetByProduct(t *testing.T) {
 //  Upsert
 
 func TestStockRepository_Upsert(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		stock   *domain.StockItem
@@ -131,6 +134,7 @@ func TestStockRepository_Upsert(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			repo, mock := newStockRepo(t)
 			tc.setup(mock)
 
@@ -149,6 +153,7 @@ func TestStockRepository_Upsert(t *testing.T) {
 //  ListLowStock
 
 func TestStockRepository_ListLowStock(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		setup     func(sqlmock.Sqlmock)
@@ -185,6 +190,7 @@ func TestStockRepository_ListLowStock(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			repo, mock := newStockRepo(t)
 			tc.setup(mock)
 

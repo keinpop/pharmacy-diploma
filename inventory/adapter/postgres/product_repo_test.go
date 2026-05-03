@@ -16,36 +16,30 @@ import (
 	usecase "pharmacy/inventory/domain/use_case"
 )
 
-func newMockDB(t *testing.T) sqlmock.Sqlmock {
-	t.Helper()
-	db, mock, err := sqlmock.New()
-	require.NoError(t, err)
-	t.Cleanup(func() { db.Close() })
-	return mock
-}
-
 func newProductRepo(t *testing.T) (*postgres.ProductRepository, sqlmock.Sqlmock) {
 	t.Helper()
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	t.Cleanup(func() { db.Close() })
+	t.Cleanup(func() { _ = db.Close() })
 	return postgres.NewProductRepository(db), mock
 }
 
+// Те же колонки, что возвращает реальный SELECT в репозитории.
 var productCols = []string{
 	"id", "name", "trade_name", "active_substance", "form", "dosage",
-	"category", "storage_conditions", "unit", "reorder_point", "created_at", "updated_at",
+	"category", "storage_conditions", "unit", "therapeutic_group",
+	"reorder_point", "created_at", "updated_at",
 }
 
-//  Create
-
 func TestProductRepository_Create(t *testing.T) {
+	t.Parallel()
 	now := time.Now()
 	validProduct := &domain.Product{
 		ID: "p1", Name: "Аспирин", TradeName: "Aspirin Cardio",
 		ActiveSubstance: "аск", Form: "таблетка", Dosage: "100мг",
 		Category: domain.CategoryOTC, Unit: "таблетка", ReorderPoint: 10,
-		CreatedAt: now, UpdatedAt: now,
+		TherapeuticGroup: "анальгетики",
+		CreatedAt:        now, UpdatedAt: now,
 	}
 
 	tests := []struct {
@@ -63,8 +57,8 @@ func TestProductRepository_Create(t *testing.T) {
 						validProduct.ID, validProduct.Name, validProduct.TradeName,
 						validProduct.ActiveSubstance, validProduct.Form, validProduct.Dosage,
 						string(validProduct.Category), validProduct.StorageConditions,
-						validProduct.Unit, validProduct.ReorderPoint,
-						sqlmock.AnyArg(), sqlmock.AnyArg(),
+						validProduct.Unit, validProduct.TherapeuticGroup,
+						validProduct.ReorderPoint, sqlmock.AnyArg(), sqlmock.AnyArg(),
 					).
 					WillReturnResult(sqlmock.NewResult(1, 1))
 			},
@@ -78,8 +72,8 @@ func TestProductRepository_Create(t *testing.T) {
 						validProduct.ID, validProduct.Name, validProduct.TradeName,
 						validProduct.ActiveSubstance, validProduct.Form, validProduct.Dosage,
 						string(validProduct.Category), validProduct.StorageConditions,
-						validProduct.Unit, validProduct.ReorderPoint,
-						sqlmock.AnyArg(), sqlmock.AnyArg(),
+						validProduct.Unit, validProduct.TherapeuticGroup,
+						validProduct.ReorderPoint, sqlmock.AnyArg(), sqlmock.AnyArg(),
 					).
 					WillReturnError(sql.ErrConnDone)
 			},
@@ -89,6 +83,7 @@ func TestProductRepository_Create(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			repo, mock := newProductRepo(t)
 			tc.setup(mock)
 
@@ -104,9 +99,8 @@ func TestProductRepository_Create(t *testing.T) {
 	}
 }
 
-//  GetByID─
-
 func TestProductRepository_GetByID(t *testing.T) {
+	t.Parallel()
 	now := time.Now()
 
 	tests := []struct {
@@ -124,7 +118,7 @@ func TestProductRepository_GetByID(t *testing.T) {
 					WithArgs("p1").
 					WillReturnRows(sqlmock.NewRows(productCols).AddRow(
 						"p1", "Аспирин", "Aspirin Cardio", "аск", "таблетка", "100мг",
-						"otc", "", "таблетка", 10, now, now,
+						"otc", "", "таблетка", "анальгетики", 10, now, now,
 					))
 			},
 			wantID: "p1",
@@ -153,6 +147,7 @@ func TestProductRepository_GetByID(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			repo, mock := newProductRepo(t)
 			tc.setup(mock)
 
@@ -170,9 +165,8 @@ func TestProductRepository_GetByID(t *testing.T) {
 	}
 }
 
-//  List
-
 func TestProductRepository_List(t *testing.T) {
+	t.Parallel()
 	now := time.Now()
 
 	tests := []struct {
@@ -191,8 +185,8 @@ func TestProductRepository_List(t *testing.T) {
 				m.ExpectQuery(regexp.QuoteMeta(`SELECT id, name`)).
 					WithArgs(20, 0).
 					WillReturnRows(sqlmock.NewRows(productCols).
-						AddRow("p1", "Аспирин", "Aspirin", "аск", "таблетка", "100мг", "otc", "", "таблетка", 10, now, now).
-						AddRow("p2", "Ибупрофен", "Нурофен", "ибу", "таблетка", "200мг", "otc", "", "таблетка", 5, now, now))
+						AddRow("p1", "Аспирин", "Aspirin", "аск", "таблетка", "100мг", "otc", "", "таблетка", "анальгетики", 10, now, now).
+						AddRow("p2", "Ибупрофен", "Нурофен", "ибу", "таблетка", "200мг", "otc", "", "таблетка", "анальгетики", 5, now, now))
 				m.ExpectQuery(regexp.QuoteMeta(`SELECT COUNT(*) FROM products`)).
 					WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
 			},
@@ -226,6 +220,7 @@ func TestProductRepository_List(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			repo, mock := newProductRepo(t)
 			tc.setup(mock)
 
@@ -243,15 +238,15 @@ func TestProductRepository_List(t *testing.T) {
 	}
 }
 
-//  Update
-
 func TestProductRepository_Update(t *testing.T) {
+	t.Parallel()
 	now := time.Now()
 	validProduct := &domain.Product{
 		ID: "p1", Name: "Аспирин Updated", TradeName: "Aspirin",
 		ActiveSubstance: "аск", Form: "таблетка", Dosage: "100мг",
 		Category: domain.CategoryOTC, Unit: "таблетка", ReorderPoint: 10,
-		UpdatedAt: now,
+		TherapeuticGroup: "анальгетики",
+		UpdatedAt:        now,
 	}
 
 	tests := []struct {
@@ -267,7 +262,8 @@ func TestProductRepository_Update(t *testing.T) {
 						validProduct.ID, validProduct.Name, validProduct.TradeName,
 						validProduct.ActiveSubstance, validProduct.Form, validProduct.Dosage,
 						string(validProduct.Category), validProduct.StorageConditions,
-						validProduct.Unit, validProduct.ReorderPoint, sqlmock.AnyArg(),
+						validProduct.Unit, validProduct.TherapeuticGroup,
+						validProduct.ReorderPoint, sqlmock.AnyArg(),
 					).
 					WillReturnResult(sqlmock.NewResult(0, 1))
 			},
@@ -280,7 +276,8 @@ func TestProductRepository_Update(t *testing.T) {
 						validProduct.ID, validProduct.Name, validProduct.TradeName,
 						validProduct.ActiveSubstance, validProduct.Form, validProduct.Dosage,
 						string(validProduct.Category), validProduct.StorageConditions,
-						validProduct.Unit, validProduct.ReorderPoint, sqlmock.AnyArg(),
+						validProduct.Unit, validProduct.TherapeuticGroup,
+						validProduct.ReorderPoint, sqlmock.AnyArg(),
 					).
 					WillReturnError(sql.ErrConnDone)
 			},
@@ -290,6 +287,7 @@ func TestProductRepository_Update(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			repo, mock := newProductRepo(t)
 			tc.setup(mock)
 

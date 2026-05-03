@@ -2,18 +2,20 @@ package use_case_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
 
 	"pharma/auth/domain"
 	usecase "pharma/auth/domain/use_case"
 )
 
-// mocks ─
+// — mocks ─
 
 type mockUserRepo struct{ mock.Mock }
 
@@ -45,16 +47,26 @@ func (m *mockSessionRepo) Set(ctx context.Context, token string, userID int64, t
 
 func (m *mockSessionRepo) Get(ctx context.Context, token string) (int64, error) {
 	args := m.Called(ctx, token)
-	return args.Get(0).(int64), args.Error(1)
+	id, _ := args.Get(0).(int64)
+	return id, args.Error(1)
 }
 
 func (m *mockSessionRepo) Delete(ctx context.Context, token string) error {
 	return m.Called(ctx, token).Error(0)
 }
 
-// Register
+func newTestTokenManager() *usecase.TokenManager {
+	return usecase.NewTokenManager("test-secret", time.Hour)
+}
+
+func newTestUC(ur *mockUserRepo, sr *mockSessionRepo) *usecase.AuthUseCase {
+	return usecase.NewAuthUseCase(ur, sr, newTestTokenManager())
+}
+
+// — Register —
 
 func TestAuthUseCase_Register(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		username string
@@ -77,7 +89,6 @@ func TestAuthUseCase_Register(t *testing.T) {
 				sr.On("Set", mock.Anything, mock.AnythingOfType("string"), int64(10), mock.Anything).
 					Return(nil)
 			},
-			wantErr: nil,
 		},
 		{
 			name:     "empty username",
@@ -118,10 +129,11 @@ func TestAuthUseCase_Register(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			ur := &mockUserRepo{}
 			sr := &mockSessionRepo{}
 			tt.setup(ur, sr)
-			uc := usecase.NewAuthUseCase(ur, sr)
+			uc := newTestUC(ur, sr)
 
 			user, token, err := uc.Register(context.Background(), tt.username, tt.password, tt.role)
 
@@ -130,10 +142,15 @@ func TestAuthUseCase_Register(t *testing.T) {
 				assert.Nil(t, user)
 				assert.Empty(t, token)
 			} else {
-				assert.NoError(t, err)
-				assert.NotNil(t, user)
+				require.NoError(t, err)
+				require.NotNil(t, user)
 				assert.NotEmpty(t, token)
 				assert.Equal(t, int64(10), user.ID)
+				// Токен должен парситься нашим менеджером.
+				claims, err := newTestTokenManager().Parse(token)
+				require.NoError(t, err)
+				assert.Equal(t, "alice", claims.Username)
+				assert.Equal(t, string(tt.role), claims.Role)
 			}
 			ur.AssertExpectations(t)
 			sr.AssertExpectations(t)
@@ -141,9 +158,10 @@ func TestAuthUseCase_Register(t *testing.T) {
 	}
 }
 
-// Login
+// — Login —
 
 func TestAuthUseCase_Login(t *testing.T) {
+	t.Parallel()
 	hash, _ := bcrypt.GenerateFromPassword([]byte("correctpass"), bcrypt.DefaultCost)
 	existingUser := &domain.User{
 		ID:           5,
@@ -168,7 +186,6 @@ func TestAuthUseCase_Login(t *testing.T) {
 				sr.On("Set", mock.Anything, mock.AnythingOfType("string"), int64(5), mock.Anything).
 					Return(nil)
 			},
-			wantErr: nil,
 		},
 		{
 			name:     "user not found returns ErrInvalidPassword",
@@ -192,10 +209,11 @@ func TestAuthUseCase_Login(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			ur := &mockUserRepo{}
 			sr := &mockSessionRepo{}
 			tt.setup(ur, sr)
-			uc := usecase.NewAuthUseCase(ur, sr)
+			uc := newTestUC(ur, sr)
 
 			user, token, err := uc.Login(context.Background(), tt.username, tt.password)
 
@@ -204,8 +222,8 @@ func TestAuthUseCase_Login(t *testing.T) {
 				assert.Nil(t, user)
 				assert.Empty(t, token)
 			} else {
-				assert.NoError(t, err)
-				assert.NotNil(t, user)
+				require.NoError(t, err)
+				require.NotNil(t, user)
 				assert.NotEmpty(t, token)
 			}
 			ur.AssertExpectations(t)
@@ -214,10 +232,17 @@ func TestAuthUseCase_Login(t *testing.T) {
 	}
 }
 
-// ValidateToken
+// — ValidateToken —
 
 func TestAuthUseCase_ValidateToken(t *testing.T) {
+	t.Parallel()
 	existingUser := &domain.User{ID: 7, Username: "carol", Role: domain.RoleAdmin}
+
+	tm := newTestTokenManager()
+	validToken, err := tm.Generate(existingUser)
+	require.NoError(t, err)
+	validClaims, err := tm.Parse(validToken)
+	require.NoError(t, err)
 
 	tests := []struct {
 		name    string
@@ -227,27 +252,32 @@ func TestAuthUseCase_ValidateToken(t *testing.T) {
 	}{
 		{
 			name:  "valid token",
-			token: "validtoken",
+			token: validToken,
 			setup: func(ur *mockUserRepo, sr *mockSessionRepo) {
-				sr.On("Get", mock.Anything, "validtoken").Return(int64(7), nil)
+				sr.On("Get", mock.Anything, validClaims.ID).Return(int64(7), nil)
 				ur.On("GetByID", mock.Anything, int64(7)).Return(existingUser, nil)
 			},
-			wantErr: nil,
 		},
 		{
-			name:  "token not in redis",
-			token: "expired",
+			name:    "malformed token",
+			token:   "not-a-jwt",
+			setup:   func(ur *mockUserRepo, sr *mockSessionRepo) {},
+			wantErr: usecase.ErrInvalidToken,
+		},
+		{
+			name:  "session revoked",
+			token: validToken,
 			setup: func(ur *mockUserRepo, sr *mockSessionRepo) {
-				sr.On("Get", mock.Anything, "expired").Return(int64(0), usecase.ErrInvalidToken)
+				sr.On("Get", mock.Anything, validClaims.ID).Return(int64(0), usecase.ErrInvalidToken)
 			},
 			wantErr: usecase.ErrInvalidToken,
 		},
 		{
 			name:  "user deleted after session created",
-			token: "orphan",
+			token: validToken,
 			setup: func(ur *mockUserRepo, sr *mockSessionRepo) {
-				sr.On("Get", mock.Anything, "orphan").Return(int64(99), nil)
-				ur.On("GetByID", mock.Anything, int64(99)).Return(nil, usecase.ErrUserNotFound)
+				sr.On("Get", mock.Anything, validClaims.ID).Return(int64(7), nil)
+				ur.On("GetByID", mock.Anything, int64(7)).Return(nil, usecase.ErrUserNotFound)
 			},
 			wantErr: usecase.ErrUserNotFound,
 		},
@@ -255,10 +285,11 @@ func TestAuthUseCase_ValidateToken(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			ur := &mockUserRepo{}
 			sr := &mockSessionRepo{}
 			tt.setup(ur, sr)
-			uc := usecase.NewAuthUseCase(ur, sr)
+			uc := usecase.NewAuthUseCase(ur, sr, tm)
 
 			user, err := uc.ValidateToken(context.Background(), tt.token)
 
@@ -266,7 +297,7 @@ func TestAuthUseCase_ValidateToken(t *testing.T) {
 				assert.ErrorIs(t, err, tt.wantErr)
 				assert.Nil(t, user)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, existingUser.ID, user.ID)
 			}
 			ur.AssertExpectations(t)
@@ -275,9 +306,17 @@ func TestAuthUseCase_ValidateToken(t *testing.T) {
 	}
 }
 
-// Logout ─
+// — Logout —
 
 func TestAuthUseCase_Logout(t *testing.T) {
+	t.Parallel()
+	user := &domain.User{ID: 5, Username: "bob", Role: domain.RoleAdmin}
+	tm := newTestTokenManager()
+	validToken, err := tm.Generate(user)
+	require.NoError(t, err)
+	validClaims, err := tm.Parse(validToken)
+	require.NoError(t, err)
+
 	tests := []struct {
 		name    string
 		token   string
@@ -286,32 +325,42 @@ func TestAuthUseCase_Logout(t *testing.T) {
 	}{
 		{
 			name:  "success",
-			token: "activetoken",
+			token: validToken,
 			setup: func(sr *mockSessionRepo) {
-				sr.On("Delete", mock.Anything, "activetoken").Return(nil)
+				sr.On("Delete", mock.Anything, validClaims.ID).Return(nil)
 			},
-			wantErr: nil,
 		},
 		{
-			name:  "redis error",
-			token: "token",
+			name:  "redis error propagates",
+			token: validToken,
 			setup: func(sr *mockSessionRepo) {
-				sr.On("Delete", mock.Anything, "token").Return(assert.AnError)
+				sr.On("Delete", mock.Anything, validClaims.ID).Return(errors.New("boom"))
 			},
-			wantErr: assert.AnError,
+			wantErr: errors.New("boom"),
+		},
+		{
+			name:  "invalid token is silently accepted",
+			token: "junk",
+			setup: func(sr *mockSessionRepo) {},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			ur := &mockUserRepo{}
 			sr := &mockSessionRepo{}
 			tt.setup(sr)
-			uc := usecase.NewAuthUseCase(ur, sr)
+			uc := usecase.NewAuthUseCase(ur, sr, tm)
 
 			err := uc.Logout(context.Background(), tt.token)
 
-			assert.ErrorIs(t, err, tt.wantErr)
+			if tt.wantErr != nil {
+				require.Error(t, err)
+				assert.Equal(t, tt.wantErr.Error(), err.Error())
+			} else {
+				require.NoError(t, err)
+			}
 			sr.AssertExpectations(t)
 		})
 	}

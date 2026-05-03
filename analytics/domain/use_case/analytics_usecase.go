@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"pharmacy/analytics/app/metrics"
 	"pharmacy/analytics/domain"
 )
 
@@ -39,6 +40,7 @@ func (uc *AnalyticsUseCase) CreateSalesReport(ctx context.Context, period string
 	if err := uc.reports.Create(ctx, report); err != nil {
 		return "", fmt.Errorf("create sales report: %w", err)
 	}
+	metrics.ReportsCreated.WithLabelValues(string(domain.TypeSalesReport)).Inc()
 	return report.ID, nil
 }
 
@@ -55,6 +57,7 @@ func (uc *AnalyticsUseCase) CreateWriteOffReport(ctx context.Context, period str
 	if err := uc.reports.Create(ctx, report); err != nil {
 		return "", fmt.Errorf("create write-off report: %w", err)
 	}
+	metrics.ReportsCreated.WithLabelValues(string(domain.TypeWriteOffReport)).Inc()
 	return report.ID, nil
 }
 
@@ -71,6 +74,7 @@ func (uc *AnalyticsUseCase) CreateForecast(ctx context.Context, lookbackMonths i
 	if err := uc.reports.Create(ctx, report); err != nil {
 		return "", fmt.Errorf("create forecast: %w", err)
 	}
+	metrics.ReportsCreated.WithLabelValues(string(domain.TypeForecast)).Inc()
 	return report.ID, nil
 }
 
@@ -87,6 +91,7 @@ func (uc *AnalyticsUseCase) CreateWasteAnalysis(ctx context.Context, period stri
 	if err := uc.reports.Create(ctx, report); err != nil {
 		return "", fmt.Errorf("create waste analysis: %w", err)
 	}
+	metrics.ReportsCreated.WithLabelValues(string(domain.TypeWasteAnalysis)).Inc()
 	return report.ID, nil
 }
 

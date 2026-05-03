@@ -2,13 +2,13 @@ package config
 
 // SeasonalCoefficients maps therapeutic_group -> [winter, spring, summer, autumn] coefficients.
 var SeasonalCoefficients = map[string][4]float64{
-	"cold_flu":        {1.5, 0.7, 0.4, 1.3},
-	"antihistamine":   {0.5, 1.5, 1.3, 0.6},
-	"painkiller":      {1.0, 1.0, 1.0, 1.0},
-	"dermatology":     {0.7, 1.0, 1.4, 0.8},
+	"cold_flu":         {1.5, 0.7, 0.4, 1.3},
+	"antihistamine":    {0.5, 1.5, 1.3, 0.6},
+	"painkiller":       {1.0, 1.0, 1.0, 1.0},
+	"dermatology":      {0.7, 1.0, 1.4, 0.8},
 	"gastrointestinal": {0.9, 1.0, 1.3, 0.9},
-	"vitamins":        {1.3, 1.1, 0.7, 1.2},
-	"cardiovascular":  {1.1, 1.0, 1.0, 1.1},
+	"vitamins":         {1.3, 1.1, 0.7, 1.2},
+	"cardiovascular":   {1.1, 1.0, 1.0, 1.1},
 }
 
 // GetSeasonalCoefficient returns the seasonal coefficient for a given therapeutic group and month (1-12).

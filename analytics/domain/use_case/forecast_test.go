@@ -46,6 +46,7 @@ func buildMonthRows(productID, productName, group string, baseMonth time.Time, q
 // — tests: ProcessReport (forecast, 1-month lookback) —
 
 func TestProcessReport_Forecast_1MonthLookback(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name             string
 		monthlySales     []usecase.MonthlySalesRow
@@ -88,6 +89,7 @@ func TestProcessReport_Forecast_1MonthLookback(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			repo := new(MockReportRepo)
 			events := new(MockEventRepo)
 			inv := new(MockInventoryClient)
@@ -130,6 +132,7 @@ func TestProcessReport_Forecast_1MonthLookback(t *testing.T) {
 // — tests: ProcessReport (forecast, 6-month lookback) —
 
 func TestProcessReport_Forecast_6MonthLookback(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name              string
 		quantities        []int
@@ -152,7 +155,7 @@ func TestProcessReport_Forecast_6MonthLookback(t *testing.T) {
 			wantConfidence:    "medium",
 		},
 		{
-			name: "double exponential smoothing with stable series",
+			name:              "double exponential smoothing with stable series",
 			quantities:        []int{100, 100, 100, 100, 100, 100},
 			stockQty:          500,
 			reserved:          0,
@@ -162,11 +165,11 @@ func TestProcessReport_Forecast_6MonthLookback(t *testing.T) {
 			wantConfidence:    "medium",
 		},
 		{
-			name: "seasonal factor doubles forecast",
-			quantities:        []int{50, 50, 50, 50, 50, 50},
-			stockQty:          0,
-			reserved:          0,
-			expiringQty:       0,
+			name:        "seasonal factor doubles forecast",
+			quantities:  []int{50, 50, 50, 50, 50, 50},
+			stockQty:    0,
+			reserved:    0,
+			expiringQty: 0,
 			// double seasonal coefficient
 			seasonalFn:        func(_ string, _ int) float64 { return 2.0 },
 			wantForecastRange: [2]int{90, 120}, // ~50 * 2.0 + trend adjustment
@@ -178,6 +181,7 @@ func TestProcessReport_Forecast_6MonthLookback(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			repo := new(MockReportRepo)
 			events := new(MockEventRepo)
 			inv := new(MockInventoryClient)
@@ -224,6 +228,7 @@ func TestProcessReport_Forecast_6MonthLookback(t *testing.T) {
 // — tests: ProcessReport (forecast, 12-month lookback) —
 
 func TestProcessReport_Forecast_12MonthLookback(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name              string
 		quantities        []int
@@ -238,8 +243,8 @@ func TestProcessReport_Forecast_12MonthLookback(t *testing.T) {
 			// Simulate seasonal pattern: high in winter, low in summer
 			quantities: []int{
 				120, 110, 100, // Jan-Mar (winter/spring)
-				80, 70, 60,   // Apr-Jun (spring/summer)
-				50, 60, 70,   // Jul-Sep (summer/autumn)
+				80, 70, 60, // Apr-Jun (spring/summer)
+				50, 60, 70, // Jul-Sep (summer/autumn)
 				90, 100, 110, // Oct-Dec (autumn/winter)
 			},
 			stockQty:          300,
@@ -249,7 +254,7 @@ func TestProcessReport_Forecast_12MonthLookback(t *testing.T) {
 			wantConfidence:    "high",
 		},
 		{
-			name: "stable 12-month series produces stable forecast",
+			name:              "stable 12-month series produces stable forecast",
 			quantities:        []int{100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100},
 			stockQty:          500,
 			reserved:          0,
@@ -258,7 +263,7 @@ func TestProcessReport_Forecast_12MonthLookback(t *testing.T) {
 			wantConfidence:    "high",
 		},
 		{
-			name: "recommended order accounts for expiring stock",
+			name:              "recommended order accounts for expiring stock",
 			quantities:        []int{50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50},
 			stockQty:          100,
 			reserved:          0,
@@ -272,6 +277,7 @@ func TestProcessReport_Forecast_12MonthLookback(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			repo := new(MockReportRepo)
 			events := new(MockEventRepo)
 			inv := new(MockInventoryClient)
@@ -319,6 +325,7 @@ func TestProcessReport_Forecast_12MonthLookback(t *testing.T) {
 // — tests: ProcessReport (forecast, empty sales data) —
 
 func TestProcessReport_Forecast_EmptySalesData(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name           string
 		lookbackMonths int
@@ -343,6 +350,7 @@ func TestProcessReport_Forecast_EmptySalesData(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			repo := new(MockReportRepo)
 			events := new(MockEventRepo)
 			inv := new(MockInventoryClient)
@@ -386,6 +394,7 @@ func TestProcessReport_Forecast_EmptySalesData(t *testing.T) {
 // — tests: ProcessReport (forecast, seasonal coefficient application) —
 
 func TestProcessReport_Forecast_SeasonalCoefficients(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name             string
 		lookbackMonths   int
@@ -424,6 +433,7 @@ func TestProcessReport_Forecast_SeasonalCoefficients(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			repo := new(MockReportRepo)
 			events := new(MockEventRepo)
 			inv := new(MockInventoryClient)
@@ -472,6 +482,7 @@ func TestProcessReport_Forecast_SeasonalCoefficients(t *testing.T) {
 // — tests: ProcessReport (forecast, inventory error resilience) —
 
 func TestProcessReport_Forecast_InventoryErrorResilience(t *testing.T) {
+	t.Parallel()
 	// When inventory returns an error for GetStock, forecast should still succeed
 	// (stock falls back to 0) per the implementation's skip logic.
 	repo := new(MockReportRepo)
@@ -506,6 +517,7 @@ func TestProcessReport_Forecast_InventoryErrorResilience(t *testing.T) {
 // — tests: ProcessReport (forecast, expiring batches error) —
 
 func TestProcessReport_Forecast_ExpiringBatchesError(t *testing.T) {
+	t.Parallel()
 	repo := new(MockReportRepo)
 	events := new(MockEventRepo)
 	inv := new(MockInventoryClient)

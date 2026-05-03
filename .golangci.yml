@@ -1,0 +1,83 @@
+# Конфиг golangci-lint v2 (нужна версия линтера 2.x — см. golangci-lint migrate).
+# Цель: очевидные баги, мёртвый код, базовый стиль, без «задушить всё предупреждениями».
+
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+  go: "1.24"
+
+linters:
+  default: none
+  enable:
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - misspell
+    - unconvert
+    - revive
+    - bodyclose
+  settings:
+    revive:
+      rules:
+        - name: var-naming
+          disabled: true
+        - name: package-comments
+          disabled: true
+        - name: exported
+          disabled: true
+        - name: blank-imports
+        - name: context-as-argument
+        - name: error-return
+        - name: error-naming
+        - name: if-return
+        - name: increment-decrement
+        - name: range
+        - name: receiver-naming
+        - name: time-naming
+        - name: unexported-return
+        - name: indent-error-flow
+        - name: empty-block
+        - name: superfluous-else
+        - name: unreachable-code
+        - name: redefines-builtin-id
+    misspell:
+      locale: US
+      ignore-words:
+        - центральная
+        - аптечная
+        - продажа
+  exclusions:
+    paths:
+      - bin
+      - vendor
+    rules:
+      - path: gen/
+        linters:
+          - errcheck
+          - staticcheck
+          - revive
+          - unused
+          - unconvert
+      - path: _test\.go
+        linters:
+          - errcheck
+          - revive
+          - bodyclose
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+output:
+  formats:
+    text:
+      path: stdout
+      colors: true

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"net/http"
 	"time"
 
 	_ "github.com/lib/pq"
@@ -12,6 +13,7 @@ import (
 	"pharma/auth/adapter/postgres"
 	redisrepo "pharma/auth/adapter/redis"
 	appgrpc "pharma/auth/app/grpc"
+	"pharma/auth/app/metrics"
 	"pharma/auth/config"
 	usecase "pharma/auth/domain/use_case"
 )
@@ -26,6 +28,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("postgres: %v", err)
 	}
+	//nolint:errcheck
 	defer db.Close()
 
 	redisClient := goredis.NewClient(&goredis.Options{
@@ -34,10 +37,13 @@ func main() {
 
 	userRepo := postgres.NewUserRepository(db)
 	sessionRepo := redisrepo.NewSessionRepository(redisClient)
+	tokenManager := usecase.NewTokenManager(cfg.JWTSecret, cfg.JWTTTL)
 
-	authUC := usecase.NewAuthUseCase(userRepo, sessionRepo)
+	authUC := usecase.NewAuthUseCase(userRepo, sessionRepo, tokenManager)
 
 	srv := appgrpc.NewServer(authUC)
+
+	go runMetrics(cfg.MetricsAddr)
 
 	log.Printf("Auth gRPC server starting on port %s", cfg.GRPCPort)
 	if err := appgrpc.Run(srv, cfg.GRPCPort); err != nil {
@@ -61,4 +67,18 @@ func connectPostgres(dsn string) (*sql.DB, error) {
 		time.Sleep(2 * time.Second)
 	}
 	return nil, fmt.Errorf("could not connect to postgres after 10 attempts: %w", err)
+}
+
+func runMetrics(addr string) {
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", metrics.Handler())
+	server := &http.Server{
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+	log.Printf("metrics endpoint listening on %s", addr)
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		log.Printf("metrics server error: %v", err)
+	}
 }

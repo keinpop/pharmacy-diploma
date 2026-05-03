@@ -1,0 +1,35 @@
+# Prometheus конфиг для pharmacy-системы.
+# Каждый микросервис отдаёт /metrics на отдельном порту,
+# Prometheus опрашивает их раз в 15 секунд.
+global:
+  scrape_interval:     15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'auth'
+    static_configs:
+      - targets: ['auth:9101']
+        labels:
+          service: 'auth'
+
+  - job_name: 'inventory'
+    static_configs:
+      - targets: ['inventory:9103']
+        labels:
+          service: 'inventory'
+
+  - job_name: 'sales'
+    static_configs:
+      - targets: ['sales:9104']
+        labels:
+          service: 'sales'
+
+  - job_name: 'analytics'
+    static_configs:
+      - targets: ['analytics:9105']
+        labels:
+          service: 'analytics'
+
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

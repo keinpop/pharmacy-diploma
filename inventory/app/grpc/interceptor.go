@@ -51,8 +51,8 @@ func AuthInterceptor(serviceToken string, authClient *AuthClient, logger *zap.Lo
 			return nil, status.Error(codes.PermissionDenied, "insufficient permissions")
 		}
 
-		// User-токен — валидируем через Auth сервис
-		_, role, err := authClient.ValidateToken(ctx, token)
+		// User-токен — валидируем через Auth сервис.
+		_, _, role, err := authClient.ValidateToken(ctx, token)
 		if err != nil {
 			logger.Warn("token validation failed",
 				zap.String("method", info.FullMethod),

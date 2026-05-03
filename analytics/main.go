@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -14,10 +15,11 @@ import (
 	"go.uber.org/zap"
 
 	chchadapter "pharmacy/analytics/adapter/clickhouse"
-	kafkaadapter "pharmacy/analytics/adapter/kafka"
 	grpcclientadapter "pharmacy/analytics/adapter/grpcclient"
+	kafkaadapter "pharmacy/analytics/adapter/kafka"
 	pgadapter "pharmacy/analytics/adapter/postgres"
 	grpcapp "pharmacy/analytics/app/grpc"
+	"pharmacy/analytics/app/metrics"
 	"pharmacy/analytics/app/worker"
 	"pharmacy/analytics/config"
 	usecase "pharmacy/analytics/domain/use_case"
@@ -30,7 +32,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer logger.Sync()
+	defer func() { _ = logger.Sync() }()
 
 	// — PostgreSQL —
 	db, err := connectPostgres(cfg.PostgresDSN)
@@ -99,6 +101,8 @@ func main() {
 		}
 	}()
 
+	go runMetricsServer(cfg.MetricsAddr, logger)
+
 	// — Graceful shutdown —
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
@@ -107,6 +111,20 @@ func main() {
 
 	cancel() // stop consumers & worker
 	srv.Stop()
+}
+
+func runMetricsServer(addr string, logger *zap.Logger) {
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", metrics.Handler())
+	server := &http.Server{
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+	logger.Info("metrics endpoint listening", zap.String("addr", addr))
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		logger.Warn("metrics server stopped", zap.Error(err))
+	}
 }
 
 // connectPostgres opens a PostgreSQL connection with retry.

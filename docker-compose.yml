@@ -1,14 +1,15 @@
 services:
 
-  # ── Auth ──────────────────────────────────────────────────────────────────
+  # Auth 
   auth:
     build:
       context: .
       dockerfile: auth/Dockerfile
     environment:
-      GRPC_PORT:  "50051"
-      DB_DSN:     "postgres://auth:auth@postgres-auth:5432/auth?sslmode=disable"
-      REDIS_ADDR: "redis:6379"
+      GRPC_PORT:    "50051"
+      DB_DSN:       "postgres://auth:auth@postgres-auth:5432/auth?sslmode=disable"
+      REDIS_ADDR:   "redis:6379"
+      METRICS_ADDR: ":9101"
     depends_on:
       postgres-auth:
         condition: service_healthy
@@ -16,6 +17,7 @@ services:
         condition: service_started
     ports:
       - "50051:50051"
+      - "9101:9101"
     networks:
       - pharmacy-net
 
@@ -36,7 +38,7 @@ services:
     networks:
       - pharmacy-net
 
-  # ── Inventory ─────────────────────────────────────────────────────────────
+  # Inventory 
   inventory:
     build:
       context: .
@@ -50,6 +52,7 @@ services:
       SERVICE_TOKEN:                "internal-service-secret"
       AUTH_ADDR:                    "auth:50051"
       KAFKA_BROKERS:                "kafka:9092"
+      METRICS_ADDR:                 ":9103"
     depends_on:
       postgres-inventory:
         condition: service_healthy
@@ -61,6 +64,7 @@ services:
         condition: service_started
     ports:
       - "50053:50053"
+      - "9103:9103"
     networks:
       - pharmacy-net
 
@@ -81,7 +85,7 @@ services:
     networks:
       - pharmacy-net
 
-  # ── Sales ─────────────────────────────────────────────────────────────────
+  # Sales 
   sales:
     build:
       context: .
@@ -93,6 +97,7 @@ services:
       INVENTORY_ADDR:  "inventory:50053"
       SERVICE_TOKEN:   "internal-service-secret"
       KAFKA_BROKERS:   "kafka:9092"
+      METRICS_ADDR:    ":9104"
     depends_on:
       postgres-sales:
         condition: service_healthy
@@ -104,6 +109,7 @@ services:
         condition: service_started
     ports:
       - "50054:50054"
+      - "9104:9104"
     networks:
       - pharmacy-net
 
@@ -124,7 +130,7 @@ services:
     networks:
       - pharmacy-net
 
-  # ── Gateway ───────────────────────────────────────────────────────────────
+  # Gateway 
   gateway:
     build:
       context: gateway
@@ -139,13 +145,13 @@ services:
     networks:
       - pharmacy-net
 
-  # ── Redis ─────────────────────────────────────────────────────────────────
+  # Redis 
   redis:
     image: redis:7-alpine
     networks:
       - pharmacy-net
 
-  # ── Elasticsearch ─────────────────────────────────────────────────────────
+  # Elasticsearch 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
     environment:
@@ -162,7 +168,7 @@ services:
     networks:
       - pharmacy-net
 
-  # ── Kafka ──────────────────────────────────────────────────────────────────
+  # Kafka 
   kafka:
     image: bitnami/kafka:latest
     environment:
@@ -179,7 +185,7 @@ services:
     networks:
       - pharmacy-net
 
-  # ── ClickHouse ─────────────────────────────────────────────────────────────
+  # ClickHouse 
   clickhouse:
     image: clickhouse/clickhouse-server:24.3
     environment:
@@ -195,7 +201,7 @@ services:
     networks:
       - pharmacy-net
 
-  # ── PostgreSQL Analytics ───────────────────────────────────────────────────
+  # PostgreSQL Analytics 
   postgres-analytics:
     image: postgres:16-alpine
     environment:
@@ -213,7 +219,7 @@ services:
     networks:
       - pharmacy-net
 
-  # ── Analytics ──────────────────────────────────────────────────────────────
+  # Analytics 
   analytics:
     build:
       context: .
@@ -227,6 +233,7 @@ services:
       INVENTORY_ADDR: "inventory:50053"
       SERVICE_TOKEN: "internal-service-secret"
       POLL_INTERVAL: "5"
+      METRICS_ADDR: ":9105"
     depends_on:
       postgres-analytics:
         condition: service_healthy
@@ -240,6 +247,44 @@ services:
         condition: service_started
     ports:
       - "50055:50055"
+      - "9105:9105"
+    networks:
+      - pharmacy-net
+
+  # Prometheus 
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prom_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    ports:
+      - "9090:9090"
+    depends_on:
+      - auth
+      - inventory
+      - sales
+      - analytics
+    networks:
+      - pharmacy-net
+
+  # Grafana 
+  grafana:
+    image: grafana/grafana:11.2.0
+    environment:
+      GF_SECURITY_ADMIN_USER:     admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP:     "false"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
     networks:
       - pharmacy-net
 
@@ -251,6 +296,8 @@ volumes:
   kafka_data:
   ch_data:
   pg_analytics:
+  prom_data:
+  grafana_data:
 
 networks:
   pharmacy-net:

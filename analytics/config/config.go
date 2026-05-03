@@ -14,6 +14,7 @@ type Config struct {
 	InventoryAddr string
 	ServiceToken  string
 	PollInterval  int // seconds
+	MetricsAddr   string
 }
 
 func Load() *Config {
@@ -33,6 +34,7 @@ func Load() *Config {
 		InventoryAddr: getEnv("INVENTORY_ADDR", "inventory:50053"),
 		ServiceToken:  getEnv("SERVICE_TOKEN", "internal-service-secret"),
 		PollInterval:  pollInterval,
+		MetricsAddr:   getEnv("METRICS_ADDR", ":9105"),
 	}
 }
 

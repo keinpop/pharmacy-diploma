@@ -35,6 +35,9 @@ message Sale {
   repeated SaleItem items            = 2;
   double total_amount                = 3;
   google.protobuf.Timestamp sold_at  = 4;
+  // Имя пользователя (фармацевта/админа), оформившего продажу.
+  // Заполняется на сервере по JWT-токену вызывающего, клиент его не передаёт.
+  string seller_username             = 5;
 }
 
 message CreateSaleResponse { Sale sale = 1; }

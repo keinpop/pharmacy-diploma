@@ -11,6 +11,7 @@ import (
 // — tests: GetSeasonalCoefficient for known groups —
 
 func TestGetSeasonalCoefficient_KnownGroups(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		group    string
@@ -62,6 +63,7 @@ func TestGetSeasonalCoefficient_KnownGroups(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			got := config.GetSeasonalCoefficient(tc.group, tc.month)
 			assert.Equal(t, tc.expected, got)
 		})
@@ -71,6 +73,7 @@ func TestGetSeasonalCoefficient_KnownGroups(t *testing.T) {
 // — tests: default coefficient for unknown group —
 
 func TestGetSeasonalCoefficient_UnknownGroup(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name  string
 		group string
@@ -87,6 +90,7 @@ func TestGetSeasonalCoefficient_UnknownGroup(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			got := config.GetSeasonalCoefficient(tc.group, tc.month)
 			assert.Equal(t, 1.0, got, "unknown group should return default coefficient 1.0")
 		})
@@ -96,6 +100,7 @@ func TestGetSeasonalCoefficient_UnknownGroup(t *testing.T) {
 // — tests: all seasons for every month —
 
 func TestGetSeasonalCoefficient_AllMonths(t *testing.T) {
+	t.Parallel()
 	// Verify every calendar month maps to the correct season for cold_flu.
 	// cold_flu: winter=1.5, spring=0.7, summer=0.4, autumn=1.3
 	tests := []struct {
@@ -119,6 +124,7 @@ func TestGetSeasonalCoefficient_AllMonths(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run("cold_flu_month_"+string(rune('0'+tc.month)), func(t *testing.T) {
+			t.Parallel()
 			got := config.GetSeasonalCoefficient("cold_flu", tc.month)
 			assert.Equal(t, tc.expected, got,
 				"month %d should map to %s with coefficient %.1f", tc.month, tc.season, tc.expected)
@@ -129,6 +135,7 @@ func TestGetSeasonalCoefficient_AllMonths(t *testing.T) {
 // — tests: season boundary correctness —
 
 func TestGetSeasonalCoefficient_SeasonBoundaries(t *testing.T) {
+	t.Parallel()
 	// Verify boundary months transition correctly between seasons.
 	// Using antihistamine: winter=0.5, spring=1.5, summer=1.3, autumn=0.6
 	group := "antihistamine"
@@ -153,6 +160,7 @@ func TestGetSeasonalCoefficient_SeasonBoundaries(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			got := config.GetSeasonalCoefficient(group, tc.month)
 			assert.Equal(t, tc.expected, got)
 		})
@@ -162,6 +170,7 @@ func TestGetSeasonalCoefficient_SeasonBoundaries(t *testing.T) {
 // — tests: seasonal coefficients map integrity —
 
 func TestSeasonalCoefficients_MapIntegrity(t *testing.T) {
+	t.Parallel()
 	expectedGroups := []string{
 		"cold_flu",
 		"antihistamine",
@@ -174,6 +183,7 @@ func TestSeasonalCoefficients_MapIntegrity(t *testing.T) {
 
 	for _, group := range expectedGroups {
 		t.Run("group_"+group+"_has_four_coefficients", func(t *testing.T) {
+			t.Parallel()
 			coeffs, ok := config.SeasonalCoefficients[group]
 			assert.True(t, ok, "group %q should be present in SeasonalCoefficients map", group)
 			assert.Len(t, coeffs, 4, "group %q should have exactly 4 seasonal coefficients", group)

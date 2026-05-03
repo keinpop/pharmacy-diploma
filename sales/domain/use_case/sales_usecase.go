@@ -3,22 +3,42 @@ package usecase
 import (
 	"context"
 
+	"pharmacy/sales/app/metrics"
 	"pharmacy/sales/domain"
 )
 
+// SellerProvider возвращает имя пользователя, оформившего вызов.
+// Реализуется в transport-слое (gRPC interceptor сохраняет username
+// в context, see app/grpc/interceptor.go).
+type SellerProvider func(ctx context.Context) string
+
 type SalesUseCase struct {
-	sales     SaleRepository
-	inventory InventoryClient
-	events    EventPublisher
+	sales         SaleRepository
+	inventory     InventoryClient
+	events        EventPublisher
+	resolveSeller SellerProvider
 }
 
-func NewSalesUseCase(sales SaleRepository, inventory InventoryClient, events EventPublisher) *SalesUseCase {
-	return &SalesUseCase{sales: sales, inventory: inventory, events: events}
+func NewSalesUseCase(sales SaleRepository, inventory InventoryClient, events EventPublisher, resolveSeller SellerProvider) *SalesUseCase {
+	if resolveSeller == nil {
+		resolveSeller = func(context.Context) string { return "" }
+	}
+	return &SalesUseCase{
+		sales:         sales,
+		inventory:     inventory,
+		events:        events,
+		resolveSeller: resolveSeller,
+	}
 }
 
 func (uc *SalesUseCase) CreateSale(ctx context.Context, in CreateSaleInput) (*domain.Sale, error) {
 	if len(in.Items) == 0 {
 		return nil, domain.ErrEmptyItems
+	}
+
+	seller := uc.resolveSeller(ctx)
+	if seller == "" {
+		return nil, domain.ErrEmptySeller
 	}
 
 	type itemInfo struct {
@@ -41,7 +61,7 @@ func (uc *SalesUseCase) CreateSale(ctx context.Context, in CreateSaleInput) (*do
 		infos = append(infos, itemInfo{productName: productName, therapeuticGroup: therapeuticGroup})
 	}
 
-	sale, err := domain.NewSale(items)
+	sale, err := domain.NewSale(items, seller)
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +70,9 @@ func (uc *SalesUseCase) CreateSale(ctx context.Context, in CreateSaleInput) (*do
 		return nil, err
 	}
 
-	// публикуем событие продажи для каждого товара
+	metrics.SalesCreated.Inc()
+	metrics.SaleAmount.Observe(sale.TotalAmount)
+
 	if uc.events != nil {
 		for i, item := range sale.Items {
 			_ = uc.events.PublishSaleCompleted(ctx, SaleCompletedEvent{
@@ -61,6 +83,7 @@ func (uc *SalesUseCase) CreateSale(ctx context.Context, in CreateSaleInput) (*do
 				PricePerUnit:     item.PricePerUnit,
 				TotalPrice:       float64(item.Quantity) * item.PricePerUnit,
 				SoldAt:           sale.SoldAt,
+				SellerUsername:   sale.SellerUsername,
 			})
 		}
 	}

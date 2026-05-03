@@ -41,6 +41,7 @@ func newBatch(id, productID string, expiresAt time.Time, qty int, status domain.
 //  Create
 
 func TestBatchRepository_Create(t *testing.T) {
+	t.Parallel()
 	b := newBatch("b1", "p1", time.Now().AddDate(0, 6, 0), 100, domain.BatchStatusAvailable)
 
 	tests := []struct {
@@ -77,6 +78,7 @@ func TestBatchRepository_Create(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			repo, mock := newBatchRepo(t)
 			tc.setup(mock)
 
@@ -95,6 +97,7 @@ func TestBatchRepository_Create(t *testing.T) {
 //  GetByID─
 
 func TestBatchRepository_GetByID(t *testing.T) {
+	t.Parallel()
 	b := newBatch("b1", "p1", time.Now().AddDate(0, 6, 0), 100, domain.BatchStatusAvailable)
 
 	tests := []struct {
@@ -141,6 +144,7 @@ func TestBatchRepository_GetByID(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			repo, mock := newBatchRepo(t)
 			tc.setup(mock)
 
@@ -161,6 +165,7 @@ func TestBatchRepository_GetByID(t *testing.T) {
 //  ListByProduct
 
 func TestBatchRepository_ListByProduct(t *testing.T) {
+	t.Parallel()
 	now := time.Now()
 	b1 := newBatch("b1", "p1", now.AddDate(0, 1, 0), 50, domain.BatchStatusExpiringSoon)
 	b2 := newBatch("b2", "p1", now.AddDate(0, 6, 0), 100, domain.BatchStatusAvailable)
@@ -210,6 +215,7 @@ func TestBatchRepository_ListByProduct(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			repo, mock := newBatchRepo(t)
 			tc.setup(mock)
 
@@ -229,6 +235,7 @@ func TestBatchRepository_ListByProduct(t *testing.T) {
 //  ListExpiring
 
 func TestBatchRepository_ListExpiring(t *testing.T) {
+	t.Parallel()
 	b := newBatch("b1", "p1", time.Now().AddDate(0, 0, 10), 30, domain.BatchStatusExpiringSoon)
 
 	tests := []struct {
@@ -275,6 +282,7 @@ func TestBatchRepository_ListExpiring(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			repo, mock := newBatchRepo(t)
 			tc.setup(mock)
 
@@ -294,6 +302,7 @@ func TestBatchRepository_ListExpiring(t *testing.T) {
 //  ListExpired─
 
 func TestBatchRepository_ListExpired(t *testing.T) {
+	t.Parallel()
 	expired := newBatch("b1", "p1", time.Now().AddDate(0, 0, -5), 20, domain.BatchStatusExpired)
 
 	tests := []struct {
@@ -338,6 +347,7 @@ func TestBatchRepository_ListExpired(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			repo, mock := newBatchRepo(t)
 			tc.setup(mock)
 
@@ -357,6 +367,7 @@ func TestBatchRepository_ListExpired(t *testing.T) {
 //  UpdateStatus
 
 func TestBatchRepository_UpdateStatus(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		batchID   string
@@ -399,6 +410,7 @@ func TestBatchRepository_UpdateStatus(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			repo, mock := newBatchRepo(t)
 			tc.setup(mock)
 
@@ -417,6 +429,7 @@ func TestBatchRepository_UpdateStatus(t *testing.T) {
 //  Save
 
 func TestBatchRepository_Save(t *testing.T) {
+	t.Parallel()
 	b := newBatch("b1", "p1", time.Now().AddDate(0, 6, 0), 80, domain.BatchStatusAvailable)
 
 	tests := []struct {
@@ -445,6 +458,7 @@ func TestBatchRepository_Save(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			repo, mock := newBatchRepo(t)
 			tc.setup(mock)
 

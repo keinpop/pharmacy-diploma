@@ -8,7 +8,9 @@ ANALYTICS_OUT := analytics/gen/
         build build-auth build-inventory build-sales build-analytics \
         test test-auth test-inventory test-sales test-analytics \
         migrate-auth migrate-inventory migrate-sales migrate-analytics \
-        lint up down down-hard
+        lint lint-auth lint-inventory lint-sales lint-analytics lint-install \
+        up down down-hard \
+        e2e load
 
 # ── proto ──────────────────────────────────────────────────────────────────
 proto: proto-auth proto-inventory proto-sales proto-analytics
@@ -65,7 +67,7 @@ build-analytics:
 	cd analytics && go build -o ../bin/analytics ./...
 
 # ── test ───────────────────────────────────────────────────────────────────
-t: test-auth test-inventory test-sales test-analytics
+test: test-auth test-inventory test-sales test-analytics
 
 test-auth:
 	cd auth && go test ./... -v -race -cover
@@ -95,8 +97,25 @@ migrate-analytics:
 	  --query "$$(cat analytics/migrations/clickhouse/001_init.sql)"
 
 # ── lint ───────────────────────────────────────────────────────────────────
-lint:
-	golangci-lint run ./auth/... ./inventory/... ./sales/... ./analytics/...
+# golangci-lint работает по go.mod; в проекте каждый сервис — это отдельный
+# Go-модуль, поэтому запускаем его четыре раза в нужных директориях.
+lint: lint-auth lint-inventory lint-sales lint-analytics
+
+lint-auth:
+	cd auth      && golangci-lint run --timeout 5m ./...
+
+lint-inventory:
+	cd inventory && golangci-lint run --timeout 5m ./...
+
+lint-sales:
+	cd sales     && golangci-lint run --timeout 5m ./...
+
+lint-analytics:
+	cd analytics && golangci-lint run --timeout 5m ./...
+
+# Установка golangci-lint в $GOPATH/bin (нужно один раз).
+lint-install:
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 
 # ── docker ─────────────────────────────────────────────────────────────────
 up:
@@ -107,3 +126,13 @@ down:
 
 down-hard:
 	docker compose down -v
+
+# ── e2e / load ─────────────────────────────────────────────────────────────
+# E2E-сценарии: ожидается, что контейнеры уже подняты (`make up`).
+# По умолчанию делает 6 продаж и опрашивает аналитику.
+e2e:
+	cd e2e && go run . -sales-count 6
+
+# 15-минутная нагрузка для дашбордов Grafana (см. http://localhost:3000).
+load:
+	cd loadgen && go run . -duration 15m

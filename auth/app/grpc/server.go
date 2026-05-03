@@ -7,12 +7,17 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 
+	"pharma/auth/app/metrics"
 	usecase "pharma/auth/domain/use_case"
 	authpb "pharma/auth/gen/auth"
 )
 
 func NewServer(uc *usecase.AuthUseCase) *grpc.Server {
-	srv := grpc.NewServer()
+	// Каждый входящий RPC будет проходить через metrics-интерсептор —
+	// получим счётчики/гистограммы в Prometheus автоматически.
+	srv := grpc.NewServer(
+		grpc.UnaryInterceptor(metrics.UnaryServerInterceptor()),
+	)
 
 	handler := NewAuthHandler(uc)
 	authpb.RegisterAuthServiceServer(srv, handler)

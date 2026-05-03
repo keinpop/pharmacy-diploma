@@ -6,6 +6,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"pharmacy/analytics/app/metrics"
 	"pharmacy/analytics/domain"
 	usecase "pharmacy/analytics/domain/use_case"
 )
@@ -38,7 +39,7 @@ func NewWorker(
 	}
 }
 
-// Run starts the worker polling loop. It stops when ctx is cancelled.
+// Run starts the worker polling loop. It stops when ctx is canceled.
 func (w *Worker) Run(ctx context.Context) {
 	ticker := time.NewTicker(w.pollInterval)
 	defer ticker.Stop()
@@ -85,9 +86,11 @@ func (w *Worker) processPending(ctx context.Context) {
 						zap.Error(saveErr),
 					)
 				}
+				metrics.ReportsCompleted.WithLabelValues(string(report.Type), "failed").Inc()
 				return
 			}
 
+			metrics.ReportsCompleted.WithLabelValues(string(report.Type), "success").Inc()
 			w.logger.Info("report processed",
 				zap.String("report_id", report.ID),
 				zap.String("type", string(report.Type)),

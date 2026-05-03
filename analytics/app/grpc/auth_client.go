@@ -26,12 +26,13 @@ func NewAuthClient(authAddr string) (*AuthClient, error) {
 	return &AuthClient{client: authpb.NewAuthServiceClient(conn)}, nil
 }
 
-// ValidateToken validates a JWT token via the Auth service.
-// Uses context.Background() to avoid propagating incoming metadata.
-func (a *AuthClient) ValidateToken(ctx context.Context, token string) (userID int64, role string, err error) {
+// ValidateToken проверяет JWT-токен через сервис аутентификации.
+// Используется context.Background(), чтобы не пробрасывать пришедшую метадату клиенту.
+func (a *AuthClient) ValidateToken(ctx context.Context, token string) (userID int64, username, role string, err error) {
+	_ = ctx
 	resp, err := a.client.ValidateToken(context.Background(), &authpb.ValidateTokenRequest{Token: token})
 	if err != nil {
-		return 0, "", err
+		return 0, "", "", err
 	}
-	return resp.UserId, resp.Role, nil
+	return resp.GetUserId(), resp.GetUsername(), resp.GetRole(), nil
 }

@@ -90,6 +90,7 @@ func noopSeasonalFn(_ string, _ int) float64 { return 1.0 }
 // — tests: CreateSalesReport —
 
 func TestCreateSalesReport(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		period      string
@@ -134,6 +135,7 @@ func TestCreateSalesReport(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			repo := new(MockReportRepo)
 			events := new(MockEventRepo)
 			inv := new(MockInventoryClient)
@@ -160,6 +162,7 @@ func TestCreateSalesReport(t *testing.T) {
 // — tests: GetSalesReport —
 
 func TestGetSalesReport(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		id      string
@@ -205,6 +208,7 @@ func TestGetSalesReport(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			repo := new(MockReportRepo)
 			events := new(MockEventRepo)
 			inv := new(MockInventoryClient)
@@ -229,6 +233,7 @@ func TestGetSalesReport(t *testing.T) {
 // — tests: CreateForecast —
 
 func TestCreateForecast(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name           string
 		lookbackMonths int
@@ -290,6 +295,7 @@ func TestCreateForecast(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			repo := new(MockReportRepo)
 			events := new(MockEventRepo)
 			inv := new(MockInventoryClient)
@@ -316,6 +322,7 @@ func TestCreateForecast(t *testing.T) {
 // — tests: ProcessReport (sales) —
 
 func TestProcessReport_SalesReport(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		report     *domain.Report
@@ -381,6 +388,7 @@ func TestProcessReport_SalesReport(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			repo := new(MockReportRepo)
 			events := new(MockEventRepo)
 			inv := new(MockInventoryClient)
@@ -403,6 +411,7 @@ func TestProcessReport_SalesReport(t *testing.T) {
 // — tests: ProcessReport (write-off) —
 
 func TestProcessReport_WriteOffReport(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		report     *domain.Report
@@ -466,6 +475,7 @@ func TestProcessReport_WriteOffReport(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			repo := new(MockReportRepo)
 			events := new(MockEventRepo)
 			inv := new(MockInventoryClient)
@@ -488,6 +498,7 @@ func TestProcessReport_WriteOffReport(t *testing.T) {
 // — tests: ProcessReport (waste analysis) —
 
 func TestProcessReport_WasteAnalysis(t *testing.T) {
+	t.Parallel()
 	baseMonth := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	tests := []struct {
@@ -594,6 +605,7 @@ func TestProcessReport_WasteAnalysis(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			repo := new(MockReportRepo)
 			events := new(MockEventRepo)
 			inv := new(MockInventoryClient)
@@ -616,6 +628,7 @@ func TestProcessReport_WasteAnalysis(t *testing.T) {
 // — tests: ProcessReport unknown type —
 
 func TestProcessReport_UnknownType(t *testing.T) {
+	t.Parallel()
 	repo := new(MockReportRepo)
 	events := new(MockEventRepo)
 	inv := new(MockInventoryClient)

@@ -2,6 +2,7 @@ package domain
 
 import (
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -11,6 +12,7 @@ var (
 	ErrEmptyItems   = errors.New("sale must have at least one item")
 	ErrInvalidQty   = errors.New("item quantity must be positive")
 	ErrSaleNotFound = errors.New("sale not found")
+	ErrEmptySeller  = errors.New("seller username is required")
 )
 
 type SaleItem struct {
@@ -22,18 +24,25 @@ type SaleItem struct {
 	TotalPrice   float64
 }
 
+// Sale — агрегат продажи. Хранит, в том числе, имя пользователя,
+// оформившего продажу (фармацевт / админ), что нужно для аудита и аналитики.
 type Sale struct {
-	ID          string
-	Items       []SaleItem
-	TotalAmount float64
-	SoldAt      time.Time
+	ID             string
+	Items          []SaleItem
+	TotalAmount    float64
+	SoldAt         time.Time
+	SellerUsername string
 }
 
-// NewSale creates a new sale from a list of sold items.
-// Each item must already have ProductID, Quantity, PricePerUnit filled in.
-func NewSale(items []SaleItem) (*Sale, error) {
+// NewSale создаёт новую продажу из списка позиций.
+// Каждая позиция должна иметь заполненные ProductID, Quantity, PricePerUnit.
+// sellerUsername — обязательный параметр (берётся из JWT-токена в use-case).
+func NewSale(items []SaleItem, sellerUsername string) (*Sale, error) {
 	if len(items) == 0 {
 		return nil, ErrEmptyItems
+	}
+	if strings.TrimSpace(sellerUsername) == "" {
+		return nil, ErrEmptySeller
 	}
 
 	saleID := uuid.NewString()
@@ -51,9 +60,10 @@ func NewSale(items []SaleItem) (*Sale, error) {
 	}
 
 	return &Sale{
-		ID:          saleID,
-		Items:       items,
-		TotalAmount: total,
-		SoldAt:      now,
+		ID:             saleID,
+		Items:          items,
+		TotalAmount:    total,
+		SoldAt:         now,
+		SellerUsername: sellerUsername,
 	}, nil
 }

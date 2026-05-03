@@ -10,50 +10,69 @@ import (
 )
 
 func TestNewSale(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		items   []domain.SaleItem
+		seller  string
 		wantErr error
 	}{
 		{
-			name:    "empty items",
+			name:    "пустой список позиций",
 			items:   nil,
+			seller:  "alice",
 			wantErr: domain.ErrEmptyItems,
 		},
 		{
-			name: "zero quantity",
+			name:    "отсутствует продавец",
+			items:   []domain.SaleItem{{ProductID: "p1", Quantity: 1, PricePerUnit: 100}},
+			seller:  "",
+			wantErr: domain.ErrEmptySeller,
+		},
+		{
+			name:    "продавец из пробелов",
+			items:   []domain.SaleItem{{ProductID: "p1", Quantity: 1, PricePerUnit: 100}},
+			seller:  "   ",
+			wantErr: domain.ErrEmptySeller,
+		},
+		{
+			name: "нулевое количество",
 			items: []domain.SaleItem{
 				{ProductID: "p1", Quantity: 0, PricePerUnit: 100},
 			},
+			seller:  "alice",
 			wantErr: domain.ErrInvalidQty,
 		},
 		{
-			name: "negative quantity",
+			name: "отрицательное количество",
 			items: []domain.SaleItem{
 				{ProductID: "p1", Quantity: -1, PricePerUnit: 100},
 			},
+			seller:  "alice",
 			wantErr: domain.ErrInvalidQty,
 		},
 		{
-			name: "single item ok",
+			name: "одна позиция, валидно",
 			items: []domain.SaleItem{
 				{ProductID: "p1", Quantity: 3, PricePerUnit: 150.50},
 			},
-			wantErr: nil,
+			seller: "alice",
 		},
 		{
-			name: "multiple items ok",
+			name: "несколько позиций, валидно",
 			items: []domain.SaleItem{
 				{ProductID: "p1", Quantity: 2, PricePerUnit: 100},
 				{ProductID: "p2", Quantity: 1, PricePerUnit: 200},
 			},
-			wantErr: nil,
+			seller: "bob",
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			sale, err := domain.NewSale(tc.items)
+			t.Parallel()
+			sale, err := domain.NewSale(tc.items, tc.seller)
+
 			if tc.wantErr != nil {
 				require.ErrorIs(t, err, tc.wantErr)
 				assert.Nil(t, sale)
@@ -62,6 +81,7 @@ func TestNewSale(t *testing.T) {
 			require.NoError(t, err)
 			require.NotNil(t, sale)
 			assert.NotEmpty(t, sale.ID)
+			assert.Equal(t, tc.seller, sale.SellerUsername)
 			assert.False(t, sale.SoldAt.IsZero())
 
 			var expectedTotal float64

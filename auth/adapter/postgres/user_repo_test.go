@@ -26,6 +26,7 @@ func newMockDB(t *testing.T) (*postgres.UserRepository, sqlmock.Sqlmock) {
 // Create ─
 
 func TestUserRepository_Create(t *testing.T) {
+	t.Parallel()
 	validUser := &domain.User{
 		Username:     "alice",
 		PasswordHash: "hash",
@@ -63,6 +64,7 @@ func TestUserRepository_Create(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			repo, mock := newMockDB(t)
 			tt.setup(mock)
 
@@ -82,6 +84,7 @@ func TestUserRepository_Create(t *testing.T) {
 // GetByUsername─
 
 func TestUserRepository_GetByUsername(t *testing.T) {
+	t.Parallel()
 	cols := []string{"id", "username", "password_hash", "role", "created_at"}
 	now := time.Now()
 
@@ -117,6 +120,7 @@ func TestUserRepository_GetByUsername(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			repo, mock := newMockDB(t)
 			tt.setup(mock)
 
@@ -137,6 +141,7 @@ func TestUserRepository_GetByUsername(t *testing.T) {
 // GetByID
 
 func TestUserRepository_GetByID(t *testing.T) {
+	t.Parallel()
 	cols := []string{"id", "username", "password_hash", "role", "created_at"}
 	now := time.Now()
 
@@ -172,6 +177,7 @@ func TestUserRepository_GetByID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			repo, mock := newMockDB(t)
 			tt.setup(mock)
 

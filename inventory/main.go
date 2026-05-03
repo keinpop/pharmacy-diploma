@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -19,13 +20,14 @@ import (
 	kafkaadapter "pharmacy/inventory/adapter/kafka"
 	pgadapter "pharmacy/inventory/adapter/postgres"
 	grpcapp "pharmacy/inventory/app/grpc"
+	"pharmacy/inventory/app/metrics"
 	"pharmacy/inventory/config"
 	usecase "pharmacy/inventory/domain/use_case"
 )
 
 func main() {
 	logger, _ := zap.NewProduction()
-	defer logger.Sync()
+	defer func() { _ = logger.Sync() }()
 
 	cfg := config.Load()
 
@@ -86,11 +88,27 @@ func main() {
 		}
 	}()
 
+	go runMetricsServer(cfg.MetricsAddr, logger)
+
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	logger.Info("shutting down inventory service")
 	srv.Stop()
+}
+
+func runMetricsServer(addr string, logger *zap.Logger) {
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", metrics.Handler())
+	server := &http.Server{
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+	logger.Info("metrics endpoint listening", zap.String("addr", addr))
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		logger.Warn("metrics server stopped", zap.Error(err))
+	}
 }
 
 func connectPostgres(dsn string) (*sql.DB, error) {

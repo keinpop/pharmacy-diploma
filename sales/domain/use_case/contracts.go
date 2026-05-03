@@ -33,6 +33,7 @@ type SaleCompletedEvent struct {
 	PricePerUnit     float64   `json:"price_per_unit"`
 	TotalPrice       float64   `json:"total_price"`
 	SoldAt           time.Time `json:"sold_at"`
+	SellerUsername   string    `json:"seller_username"`
 }
 
 type CreateSaleItemInput struct {

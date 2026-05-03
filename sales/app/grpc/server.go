@@ -8,6 +8,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 
+	"pharmacy/sales/app/metrics"
 	pb "pharmacy/sales/gen/sales"
 )
 
@@ -18,8 +19,12 @@ type Server struct {
 }
 
 func NewServer(port string, handler *Handler, authClient *AuthClient, logger *zap.Logger, serviceToken string) *Server {
+	// Сначала собираем метрики, затем проверяем авторизацию.
 	srv := grpc.NewServer(
-		grpc.UnaryInterceptor(AuthInterceptor(serviceToken, authClient, logger)),
+		grpc.ChainUnaryInterceptor(
+			metrics.UnaryServerInterceptor(),
+			AuthInterceptor(serviceToken, authClient, logger),
+		),
 	)
 	pb.RegisterSalesServiceServer(srv, handler)
 	reflection.Register(srv)

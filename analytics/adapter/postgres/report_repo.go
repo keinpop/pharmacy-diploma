@@ -107,10 +107,6 @@ func (r *ReportRepo) SaveError(ctx context.Context, id string, errMsg string) er
 
 // — helpers —
 
-type scannable interface {
-	Scan(dest ...interface{}) error
-}
-
 func scanReport(row *sql.Row) (*domain.Report, error) {
 	var (
 		id          string

@@ -24,10 +24,11 @@ func NewAuthClient(authAddr string) (*AuthClient, error) {
 	return &AuthClient{client: authpb.NewAuthServiceClient(conn)}, nil
 }
 
-func (a *AuthClient) ValidateToken(ctx context.Context, token string) (userID int64, role string, err error) {
+// ValidateToken возвращает userID, username и роль пользователя для JWT-токена.
+func (a *AuthClient) ValidateToken(ctx context.Context, token string) (userID int64, username, role string, err error) {
 	resp, err := a.client.ValidateToken(ctx, &authpb.ValidateTokenRequest{Token: token})
 	if err != nil {
-		return 0, "", err
+		return 0, "", "", err
 	}
-	return resp.UserId, resp.Role, nil
+	return resp.UserId, resp.Username, resp.Role, nil
 }

@@ -6,6 +6,7 @@ import (
 	"sort"
 	"time"
 
+	"pharmacy/inventory/app/metrics"
 	"pharmacy/inventory/domain"
 )
 
@@ -123,6 +124,7 @@ func (uc *InventoryUseCase) ReceiveBatch(ctx context.Context, in ReceiveBatchInp
 	if err := uc.recalcStock(ctx, in.ProductID); err != nil {
 		return nil, err
 	}
+	metrics.BatchesReceived.Inc()
 	// публикуем событие получения партии
 	if uc.events != nil {
 		_ = uc.events.PublishBatchReceived(ctx, BatchReceivedEvent{
@@ -208,6 +210,7 @@ func (uc *InventoryUseCase) DeductStock(ctx context.Context, productID string, q
 		return "", 0, "", "", domain.ErrInsufficientStock
 	}
 
+	metrics.StockDeductions.Inc()
 	retailPrice := totalCost / float64(totalDeducted)
 	return usedBatchID, retailPrice, productName, therapeuticGroup, uc.recalcStock(ctx, productID)
 }
@@ -232,6 +235,7 @@ func (uc *InventoryUseCase) WriteOffExpired(ctx context.Context) (int, error) {
 			return count, err
 		}
 		count++
+		metrics.BatchesWrittenOff.Inc()
 		_ = uc.recalcStock(ctx, b.ProductID)
 		// публикуем событие списания партии
 		if uc.events != nil {

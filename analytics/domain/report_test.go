@@ -13,6 +13,7 @@ import (
 // — tests: ReportStatus constants —
 
 func TestReportStatusConstants(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		status   domain.ReportStatus
@@ -42,6 +43,7 @@ func TestReportStatusConstants(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, domain.ReportStatus(tc.expected), tc.status)
 			assert.Equal(t, tc.expected, string(tc.status))
 		})
@@ -51,6 +53,7 @@ func TestReportStatusConstants(t *testing.T) {
 // — tests: all status constants are distinct —
 
 func TestReportStatusConstants_AreDistinct(t *testing.T) {
+	t.Parallel()
 	statuses := []domain.ReportStatus{
 		domain.StatusPending,
 		domain.StatusProcessing,
@@ -68,6 +71,7 @@ func TestReportStatusConstants_AreDistinct(t *testing.T) {
 // — tests: ReportType constants —
 
 func TestReportTypeConstants(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		reportType domain.ReportType
@@ -97,6 +101,7 @@ func TestReportTypeConstants(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, domain.ReportType(tc.expected), tc.reportType)
 			assert.Equal(t, tc.expected, string(tc.reportType))
 		})
@@ -106,6 +111,7 @@ func TestReportTypeConstants(t *testing.T) {
 // — tests: all report type constants are distinct —
 
 func TestReportTypeConstants_AreDistinct(t *testing.T) {
+	t.Parallel()
 	types := []domain.ReportType{
 		domain.TypeSalesReport,
 		domain.TypeWriteOffReport,
@@ -123,6 +129,7 @@ func TestReportTypeConstants_AreDistinct(t *testing.T) {
 // — tests: NewReport —
 
 func TestNewReport(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		reportType domain.ReportType
@@ -157,6 +164,7 @@ func TestNewReport(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			before := time.Now().UTC()
 			report := domain.NewReport(tc.reportType, tc.params)
 			after := time.Now().UTC()
@@ -181,6 +189,7 @@ func TestNewReport(t *testing.T) {
 // — tests: NewReport generates unique IDs —
 
 func TestNewReport_UniqueIDs(t *testing.T) {
+	t.Parallel()
 	const count = 100
 	ids := make(map[string]bool, count)
 	for i := 0; i < count; i++ {
